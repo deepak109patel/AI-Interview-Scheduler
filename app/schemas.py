@@ -177,5 +177,32 @@ class ExportFilter(BaseModel):
     status: Optional[str] = None
 
 
+# ─── Authentication Schemas ───────────────────────────────────────────────────
+
+class UserSignUp(BaseModel):
+    name: str
+    email: str
+    password: str
+    confirm_password: str
+    role: str  # "candidate" or "recruiter"
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+    candidate_id: Optional[int] = None
+    created_at: str
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
 # Fix forward references
 CandidateDetail.model_rebuild()

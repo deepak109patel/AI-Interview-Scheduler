@@ -73,6 +73,201 @@
     ::-webkit-scrollbar-thumb { background: rgba(100,110,200,0.3); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(100,110,200,0.5); }
 
+    /* ══════════════════════════════════════════════════════════
+       AUTH PAGES — Login / Signup
+       ══════════════════════════════════════════════════════════ */
+    .auth-page {
+      position: fixed; inset: 0; z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .auth-page.hidden { display: none; }
+
+    /* Animated orbs background */
+    .auth-bg-orbs {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+    }
+    .auth-bg-orbs .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4;
+      animation: orbFloat 8s ease-in-out infinite;
+    }
+    .auth-bg-orbs .orb:nth-child(1) {
+      width: 400px; height: 400px; background: rgba(108,99,255,0.3);
+      top: -100px; left: -100px; animation-delay: 0s;
+    }
+    .auth-bg-orbs .orb:nth-child(2) {
+      width: 350px; height: 350px; background: rgba(139,92,246,0.25);
+      bottom: -80px; right: -80px; animation-delay: -3s;
+    }
+    .auth-bg-orbs .orb:nth-child(3) {
+      width: 250px; height: 250px; background: rgba(6,182,212,0.2);
+      top: 40%; right: 20%; animation-delay: -5s;
+    }
+    @keyframes orbFloat {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(30px,-20px) scale(1.05); }
+      66% { transform: translate(-20px,15px) scale(0.95); }
+    }
+
+    .auth-card {
+      position: relative; z-index: 1;
+      background: rgba(15, 18, 38, 0.75);
+      backdrop-filter: blur(24px) saturate(1.6);
+      border: 1px solid rgba(100,110,200,0.2);
+      border-radius: 24px;
+      padding: 2.5rem;
+      width: 90%; max-width: 440px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 60px rgba(108,99,255,0.1);
+      animation: authCardIn 0.5s ease;
+    }
+    @keyframes authCardIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .auth-logo {
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 2rem; justify-content: center;
+    }
+    .auth-logo .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 14px;
+      display: grid; place-items: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 30px rgba(108,99,255,0.4);
+    }
+    .auth-logo h2 {
+      font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em;
+    }
+    .auth-logo small { font-size: .7rem; color: var(--muted); display: block; margin-top: 2px; }
+
+    .auth-title {
+      font-size: 1.5rem; font-weight: 800; text-align: center;
+      margin-bottom: .4rem;
+      background: linear-gradient(135deg, var(--text), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .auth-subtitle {
+      text-align: center; font-size: .85rem; color: var(--muted);
+      margin-bottom: 1.75rem;
+    }
+
+    /* Role toggle */
+    .role-toggle {
+      display: flex; background: rgba(15,18,35,0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 4px;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .role-toggle .role-btn {
+      flex: 1; padding: .6rem 1rem;
+      text-align: center; font-size: .82rem; font-weight: 600;
+      color: var(--muted); cursor: pointer;
+      border-radius: 9px; transition: var(--transition);
+      position: relative; z-index: 1;
+      border: none; background: none; font-family: inherit;
+    }
+    .role-toggle .role-btn.active {
+      color: #fff;
+    }
+    .role-toggle .role-slider {
+      position: absolute; top: 4px; bottom: 4px;
+      width: calc(50% - 4px);
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 9px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 12px rgba(108,99,255,0.4);
+    }
+    .role-toggle .role-slider.right {
+      transform: translateX(calc(100% + 4px));
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: .85rem; }
+    .auth-form .form-group { display: flex; flex-direction: column; gap: .3rem; }
+    .auth-form label {
+      font-size: .76rem; color: var(--muted); font-weight: 500;
+      display: flex; align-items: center; gap: .35rem;
+    }
+    .auth-form input {
+      background: rgba(15, 18, 35, 0.8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      padding: .7rem .9rem;
+      color: var(--text);
+      font-size: .88rem;
+      font-family: inherit;
+      transition: var(--transition);
+      outline: none; width: 100%;
+    }
+    .auth-form input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+    }
+    .auth-form input::placeholder { color: var(--muted); }
+
+    .auth-error {
+      background: var(--red-bg);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: var(--red);
+      padding: .55rem .85rem;
+      border-radius: 8px;
+      font-size: .8rem;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .auth-error.show { display: block; }
+
+    .auth-btn {
+      width: 100%; padding: .75rem;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff; border: none;
+      border-radius: var(--radius-xs);
+      font-family: inherit; font-size: .88rem; font-weight: 700;
+      cursor: pointer; transition: var(--transition);
+      box-shadow: 0 4px 20px rgba(108,99,255,0.35);
+      margin-top: .5rem;
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+    }
+    .auth-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(108,99,255,0.5); }
+    .auth-btn:active { transform: translateY(0); }
+    .auth-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .auth-btn .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    .auth-btn.loading .spinner { display: block; }
+    .auth-btn.loading .btn-text { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .auth-footer {
+      text-align: center; margin-top: 1.5rem;
+      font-size: .82rem; color: var(--muted);
+    }
+    .auth-footer a {
+      color: var(--accent2); text-decoration: none; font-weight: 600;
+      transition: var(--transition);
+    }
+    .auth-footer a:hover { color: var(--accent); text-decoration: underline; }
+
+    .auth-divider {
+      display: flex; align-items: center; gap: .75rem;
+      margin: .5rem 0;
+      color: var(--muted); font-size: .75rem;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
+
     /* ══ NAVBAR ═══════════════════════════════════════════ */
     .navbar {
       position: sticky; top: 0; z-index: 100;
@@ -83,6 +278,7 @@
       display: flex; align-items: center;
       height: 64px;
     }
+    .navbar.hidden { display: none; }
     .nav-brand {
       display: flex; align-items: center; gap: .75rem;
       margin-right: 2.5rem; text-decoration: none; color: var(--text);
@@ -136,6 +332,40 @@
       50% { opacity:.5; transform:scale(1.5); }
     }
 
+    /* User badge in navbar */
+    .nav-user {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .35rem .65rem .35rem .35rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      cursor: default;
+    }
+    .nav-user-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: grid; place-items: center;
+      font-size: .65rem; font-weight: 700; color: #fff;
+    }
+    .nav-user-name { font-size: .78rem; font-weight: 600; color: var(--text); }
+    .nav-user-role {
+      font-size: .65rem; font-weight: 600;
+      padding: .1rem .4rem; border-radius: 10px;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .nav-user-role.recruiter { background: rgba(108,99,255,.15); color: var(--accent2); }
+    .nav-user-role.candidate { background: var(--green-bg); color: var(--green); }
+
+    .btn-logout {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); padding: .35rem .65rem;
+      border-radius: 8px; font-size: .75rem;
+      font-family: inherit; font-weight: 500;
+      cursor: pointer; transition: var(--transition);
+      display: flex; align-items: center; gap: .3rem;
+    }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
     /* ══ MAIN CONTENT ════════════════════════════════════ */
     .app-content {
       position: relative; z-index: 1;
@@ -143,6 +373,7 @@
       margin: 0 auto;
       padding: 1.5rem 2rem 3rem;
     }
+    .app-content.hidden { display: none; }
     .page { display: none; animation: fadeIn 0.35s ease; }
     .page.active { display: block; }
     @keyframes fadeIn {
@@ -294,6 +525,7 @@
     .activity-dot.imported { background: var(--yellow); }
     .activity-dot.scheduled { background: var(--accent2); }
     .activity-dot.rescheduled { background: var(--cyan); }
+    .activity-dot.signup { background: var(--accent); }
     .activity-text { font-size: .82rem; color: var(--text2); }
     .activity-time { font-size: .7rem; color: var(--muted); margin-top: .2rem; }
 
@@ -467,6 +699,9 @@
       grid-template-columns: 300px 1fr;
       gap: 1rem;
       height: calc(100vh - 140px);
+    }
+    .chat-layout.candidate-mode {
+      grid-template-columns: 1fr;
     }
     .chat-sidebar { overflow-y: auto; }
     .chat-sidebar-header {
@@ -703,13 +938,116 @@
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .pipeline-view { grid-template-columns: 1fr; }
       .cal-grid { font-size: .7rem; }
+      .auth-card { padding: 1.75rem; }
+      .nav-user-name { display: none; }
     }
   </style>
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════════════════
+     AUTH — Login Page
+     ══════════════════════════════════════════════════════════ -->
+<div class="auth-page" id="auth-login">
+  <div class="auth-bg-orbs">
+    <div class="orb"></div>
+    <div class="orb"></div>
+    <div class="orb"></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">🤖</div>
+      <div>
+        <h2>AI Interview Scheduler</h2>
+        <small>Powered by Google Gemini</small>
+      </div>
+    </div>
+    <h3 class="auth-title">Welcome Back</h3>
+    <p class="auth-subtitle">Sign in to your account to continue</p>
+
+    <div class="auth-error" id="login-error"></div>
+
+    <form class="auth-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>📧 Email Address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label>🔒 Password</label>
+        <input type="password" id="login-password" placeholder="Enter your password" required autocomplete="current-password"/>
+      </div>
+      <button type="submit" class="auth-btn" id="login-btn">
+        <span class="spinner"></span>
+        <span class="btn-text">Sign In →</span>
+      </button>
+    </form>
+    <div class="auth-footer">
+      Don't have an account? <a href="#" onclick="showSignup()">Create one</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     AUTH — Signup Page
+     ══════════════════════════════════════════════════════════ -->
+<div class="auth-page hidden" id="auth-signup">
+  <div class="auth-bg-orbs">
+    <div class="orb"></div>
+    <div class="orb"></div>
+    <div class="orb"></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">🤖</div>
+      <div>
+        <h2>AI Interview Scheduler</h2>
+        <small>Powered by Google Gemini</small>
+      </div>
+    </div>
+    <h3 class="auth-title">Create Account</h3>
+    <p class="auth-subtitle">Join as a candidate or recruiter</p>
+
+    <div class="auth-error" id="signup-error"></div>
+
+    <!-- Role Toggle -->
+    <div class="role-toggle" id="role-toggle">
+      <div class="role-slider" id="role-slider"></div>
+      <button type="button" class="role-btn active" onclick="setRole('candidate')">👤 Candidate</button>
+      <button type="button" class="role-btn" onclick="setRole('recruiter')">💼 Recruiter</button>
+    </div>
+
+    <form class="auth-form" onsubmit="handleSignup(event)">
+      <input type="hidden" id="signup-role" value="candidate"/>
+      <div class="form-group">
+        <label>👤 Full Name</label>
+        <input type="text" id="signup-name" placeholder="e.g. Sarah Khan" required/>
+      </div>
+      <div class="form-group">
+        <label>📧 Email Address</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" required autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label>🔒 Password</label>
+        <input type="password" id="signup-password" placeholder="At least 6 characters" required minlength="6"/>
+      </div>
+      <div class="form-group">
+        <label>🔒 Confirm Password</label>
+        <input type="password" id="signup-confirm" placeholder="Re-enter your password" required minlength="6"/>
+      </div>
+      <button type="submit" class="auth-btn" id="signup-btn">
+        <span class="spinner"></span>
+        <span class="btn-text">Create Account →</span>
+      </button>
+    </form>
+    <div class="auth-footer">
+      Already have an account? <a href="#" onclick="showLogin()">Sign in</a>
+    </div>
+  </div>
+</div>
+
+
 <!-- ══ NAVBAR ════════════════════════════════════════════ -->
-<nav class="navbar">
+<nav class="navbar hidden" id="main-navbar">
   <a class="nav-brand" href="#" onclick="navigate('dashboard')">
     <div class="nav-logo">🤖</div>
     <div>
@@ -717,7 +1055,7 @@
       <small>Powered by Google Gemini</small>
     </div>
   </a>
-  <ul class="nav-links">
+  <ul class="nav-links" id="nav-links">
     <li><a href="#" onclick="navigate('dashboard')" id="nav-dashboard" class="active">📊 <span>Dashboard</span></a></li>
     <li><a href="#" onclick="navigate('candidates')" id="nav-candidates">👥 <span>Candidates</span></a></li>
     <li><a href="#" onclick="navigate('calendar')" id="nav-calendar">📅 <span>Calendar</span></a></li>
@@ -725,15 +1063,20 @@
     <li><a href="#" onclick="navigate('settings')" id="nav-settings">⚙️ <span>Settings</span></a></li>
   </ul>
   <div class="nav-right">
-    <div class="nav-status">Online</div>
+    <div class="nav-user" id="nav-user-badge">
+      <div class="nav-user-avatar" id="nav-user-avatar">?</div>
+      <span class="nav-user-name" id="nav-user-name">User</span>
+      <span class="nav-user-role" id="nav-user-role">role</span>
+    </div>
+    <button class="btn-logout" onclick="handleLogout()">🚪 Logout</button>
   </div>
 </nav>
 
 <!-- ══ MAIN CONTENT ═════════════════════════════════════ -->
-<div class="app-content">
+<div class="app-content hidden" id="main-content">
 
 <!-- ── DASHBOARD PAGE ──────────────────────────────────── -->
-<div class="page active" id="page-dashboard">
+<div class="page" id="page-dashboard">
   <h2 class="page-title">Dashboard</h2>
   <p class="page-subtitle">Overview of your hiring pipeline and interview activity</p>
 
@@ -856,8 +1199,8 @@
   <h2 class="page-title">AI Chat</h2>
   <p class="page-subtitle">Schedule interviews through AI-powered conversation</p>
 
-  <div class="chat-layout">
-    <div class="glass chat-sidebar">
+  <div class="chat-layout" id="chat-layout">
+    <div class="glass chat-sidebar" id="chat-sidebar">
       <div class="chat-sidebar-header">
         <h3>Candidates</h3>
         <input type="text" placeholder="Search..." id="chat-search" oninput="filterChatCandidates()" style="font-size:.8rem;"/>
@@ -1051,7 +1394,7 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════
-   APPLICATION LOGIC
+   APPLICATION LOGIC — WITH AUTHENTICATION
    ══════════════════════════════════════════════════════════ */
 const API = '';
 let currentPage = 'dashboard';
@@ -1063,12 +1406,240 @@ let calEvents = [];
 let statusChartInstance = null;
 let rolesChartInstance = null;
 
+// ─── Auth State ─────────────────────────────────────────
+let authToken = localStorage.getItem('auth_token');
+let authUser = JSON.parse(localStorage.getItem('auth_user') || 'null');
+let selectedRole = 'candidate';
+
+/* ══════════════════════════════════════════════════════════
+   AUTH FUNCTIONS
+   ══════════════════════════════════════════════════════════ */
+function showLogin() {
+  document.getElementById('auth-login').classList.remove('hidden');
+  document.getElementById('auth-signup').classList.add('hidden');
+  document.getElementById('login-error').classList.remove('show');
+}
+
+function showSignup() {
+  document.getElementById('auth-signup').classList.remove('hidden');
+  document.getElementById('auth-login').classList.add('hidden');
+  document.getElementById('signup-error').classList.remove('show');
+}
+
+function setRole(role) {
+  selectedRole = role;
+  document.getElementById('signup-role').value = role;
+  const btns = document.querySelectorAll('.role-toggle .role-btn');
+  const slider = document.getElementById('role-slider');
+  btns.forEach(b => b.classList.remove('active'));
+  if (role === 'candidate') {
+    btns[0].classList.add('active');
+    slider.classList.remove('right');
+  } else {
+    btns[1].classList.add('active');
+    slider.classList.add('right');
+  }
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  btn.classList.add('loading'); btn.disabled = true;
+
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+    // Save auth
+    authToken = data.access_token;
+    authUser = data.user;
+    localStorage.setItem('auth_token', authToken);
+    localStorage.setItem('auth_user', JSON.stringify(authUser));
+
+    enterApp();
+  } catch(err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('show');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const btn = document.getElementById('signup-btn');
+  const errEl = document.getElementById('signup-error');
+  errEl.classList.remove('show');
+  btn.classList.add('loading'); btn.disabled = true;
+
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const confirmPassword = document.getElementById('signup-confirm').value;
+  const role = document.getElementById('signup-role').value;
+
+  if (password !== confirmPassword) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.classList.add('show');
+    btn.classList.remove('loading'); btn.disabled = false;
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/auth/signup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, email, password, confirm_password: confirmPassword, role }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Signup failed');
+
+    // Save auth
+    authToken = data.access_token;
+    authUser = data.user;
+    localStorage.setItem('auth_token', authToken);
+    localStorage.setItem('auth_user', JSON.stringify(authUser));
+
+    enterApp();
+  } catch(err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('show');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+function handleLogout() {
+  authToken = null;
+  authUser = null;
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  // Reset state
+  currentSessionId = null;
+  currentCandidate = null;
+  sessionStatus = 'active';
+  // Hide app, show login
+  document.getElementById('main-navbar').classList.add('hidden');
+  document.getElementById('main-content').classList.add('hidden');
+  document.getElementById('auth-login').classList.remove('hidden');
+  document.getElementById('auth-signup').classList.add('hidden');
+  // Clear form fields
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  showToast('Logged out successfully', 'info');
+}
+
+function enterApp() {
+  // Hide auth pages
+  document.getElementById('auth-login').classList.add('hidden');
+  document.getElementById('auth-signup').classList.add('hidden');
+
+  // Show app
+  document.getElementById('main-navbar').classList.remove('hidden');
+  document.getElementById('main-content').classList.remove('hidden');
+
+  // Update user badge
+  updateUserBadge();
+
+  // Apply role-based nav
+  applyRoleAccess();
+
+  // Navigate to appropriate start page
+  if (authUser.role === 'candidate') {
+    navigate('chat');
+  } else {
+    navigate('dashboard');
+  }
+}
+
+function updateUserBadge() {
+  if (!authUser) return;
+  document.getElementById('nav-user-avatar').textContent = getInitials(authUser.name);
+  document.getElementById('nav-user-name').textContent = authUser.name;
+  const roleEl = document.getElementById('nav-user-role');
+  roleEl.textContent = authUser.role;
+  roleEl.className = `nav-user-role ${authUser.role}`;
+}
+
+function applyRoleAccess() {
+  if (!authUser) return;
+
+  const navItems = {
+    'nav-dashboard': 'recruiter',
+    'nav-candidates': 'recruiter',
+    'nav-calendar': 'recruiter',
+    'nav-chat': 'all',
+    'nav-settings': 'recruiter',
+  };
+
+  Object.entries(navItems).forEach(([id, access]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (access === 'all') {
+      el.parentElement.style.display = '';
+    } else if (authUser.role === access || authUser.role === 'recruiter') {
+      el.parentElement.style.display = '';
+    } else {
+      el.parentElement.style.display = 'none';
+    }
+  });
+
+  // For candidates: hide sidebar, auto-open their session
+  if (authUser.role === 'candidate') {
+    const chatLayout = document.getElementById('chat-layout');
+    if (chatLayout) chatLayout.classList.add('candidate-mode');
+    const sidebar = document.getElementById('chat-sidebar');
+    if (sidebar) sidebar.style.display = 'none';
+  } else {
+    const chatLayout = document.getElementById('chat-layout');
+    if (chatLayout) chatLayout.classList.remove('candidate-mode');
+    const sidebar = document.getElementById('chat-sidebar');
+    if (sidebar) sidebar.style.display = '';
+  }
+}
+
+async function validateToken() {
+  if (!authToken || !authUser) return false;
+  try {
+    const res = await fetch(API + '/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + authToken },
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    // Update user data from server
+    if (data.id) {
+      authUser = data;
+      localStorage.setItem('auth_user', JSON.stringify(authUser));
+    }
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
 /* ── Navigation ──────────────────────────────────────── */
 function navigate(page) {
+  // Role check for candidates
+  if (authUser && authUser.role === 'candidate' && page !== 'chat') {
+    page = 'chat';
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  document.getElementById('nav-' + page).classList.add('active');
+  const pageEl = document.getElementById('page-' + page);
+  const navEl = document.getElementById('nav-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  if (navEl) navEl.classList.add('active');
   currentPage = page;
 
   // Load page data
@@ -1093,7 +1664,13 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 function showModal(id) { document.getElementById(id).classList.add('show'); }
 
 async function apiFetch(path, opts = {}) {
-  const res = await fetch(API + path, { headers: {'Content-Type':'application/json'}, ...opts });
+  const headers = {'Content-Type':'application/json'};
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  const res = await fetch(API + path, { headers, ...opts });
+  if (res.status === 401) {
+    handleLogout();
+    throw new Error('Session expired. Please log in again.');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({detail:'Unknown error'}));
     throw new Error(err.detail || 'API error');
@@ -1276,7 +1853,7 @@ async function addCandidate() {
 async function deleteCandidate(id, name) {
   if (!confirm(`Delete ${name}? This will remove all their data.`)) return;
   try {
-    await fetch(`/candidates/${id}`, {method:'DELETE'});
+    await fetch(`/candidates/${id}`, {method:'DELETE', headers: authToken ? {'Authorization':'Bearer '+authToken} : {}});
     showToast(`🗑️ ${name} deleted`);
     loadCandidatesPage();
   } catch(e) { showToast(e.message, 'error'); }
@@ -1330,7 +1907,9 @@ async function importCSV() {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const res = await fetch('/candidates/import', {method:'POST', body:formData});
+    const headers = {};
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch('/candidates/import', {method:'POST', body:formData, headers});
     const data = await res.json();
     document.getElementById('import-result').innerHTML =
       `<strong style="color:var(--green)">✅ ${data.imported} imported</strong>, ${data.skipped} skipped` +
@@ -1377,10 +1956,10 @@ async function loadCalendar() {
 
   let current = new Date(startDate);
   while (current <= endDate) {
-    const dateStr = current.toISOString().split('T')[0];
+    const dateStr2 = current.toISOString().split('T')[0];
     const isToday = current.toDateString() === today.toDateString();
     const isOther = current.getMonth() !== month;
-    const dayEvents = calEvents.filter(e => e.scheduled_time.startsWith(dateStr));
+    const dayEvents = calEvents.filter(e => e.scheduled_time.startsWith(dateStr2));
 
     html += `<div class="cal-day ${isToday?'today':''} ${isOther?'other-month':''}">
       <div class="cal-day-num">${current.getDate()}</div>
@@ -1427,6 +2006,21 @@ async function showEventDetail(id) {
 
 /* ══ CHAT ════════════════════════════════════════════════ */
 async function loadChatPage() {
+  if (authUser && authUser.role === 'candidate') {
+    // Auto-open candidate's own session
+    if (authUser.candidate_id) {
+      try {
+        const c = await apiFetch(`/candidates/${authUser.candidate_id}`);
+        document.getElementById('welcome-screen').style.display = 'none';
+        openSession(c);
+      } catch(e) {
+        console.error('Could not load candidate profile:', e);
+      }
+    }
+    return;
+  }
+
+  // Recruiter: show candidate list
   try {
     const list = await apiFetch('/candidates/');
     const el = document.getElementById('chat-candidate-list');
@@ -1508,7 +2102,10 @@ async function startNewSession() {
   // Complete the old session
   if (currentSessionId) {
     try {
-      await fetch(`/sessions/${currentSessionId}/complete`, {method:'PUT'});
+      await fetch(`/sessions/${currentSessionId}/complete`, {
+        method:'PUT',
+        headers: authToken ? {'Authorization':'Bearer '+authToken} : {}
+      });
     } catch(e) { /* ignore */ }
   }
   // Start fresh
@@ -1641,14 +2238,32 @@ async function testApiKey() {
 /* ── Auto-resize textarea ────────────────────────────── */
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
 
-/* ── Init ────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-  loadDashboard();
+/* ══════════════════════════════════════════════════════════
+   INIT — Check auth state on load
+   ══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async () => {
   const input = document.getElementById('msg-input');
   input.addEventListener('input', () => autoResize(input));
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
+
+  // Check if user is already logged in
+  if (authToken && authUser) {
+    const valid = await validateToken();
+    if (valid) {
+      enterApp();
+    } else {
+      // Token invalid, clear and show login
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      authToken = null;
+      authUser = null;
+      showLogin();
+    }
+  } else {
+    showLogin();
+  }
 });
 </script>
 </body>

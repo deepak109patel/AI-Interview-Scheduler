@@ -76,6 +76,10 @@ async def init_db():
     await database.activity_log.create_index("id", unique=True)
     await database.activity_log.create_index("created_at")
 
+    # User indexes (authentication)
+    await database.users.create_index("id", unique=True)
+    await database.users.create_index("email", unique=True)
+
     # Settings indexes
     await database.settings.create_index("key", unique=True)
 

@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import os
 
 from app.database import init_db
-from app.routers import candidates, sessions, chat
+from app.routers import candidates, sessions, chat, auth
 from app.routers import analytics, calendar_routes, settings_routes, export
 
 
@@ -50,6 +50,7 @@ async def ensure_db_initialized(request: Request, call_next):
     return await call_next(request)
 
 # ─── Core Routers ─────────────────────────────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(candidates.router)
 app.include_router(sessions.router)
 app.include_router(chat.router)
