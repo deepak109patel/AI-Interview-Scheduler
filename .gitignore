@@ -3,12 +3,15 @@
 __pycache__/
 *.pyc
 *.pyo
+
 .venv/
+.venv_mac/
 venv/
 env/
+
 .idea/
 .vscode/
+
 *.egg-info/
 dist/
 build/
-.venv_mac
