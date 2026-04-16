@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,10 +10,16 @@ from app.routers import candidates, sessions, chat
 from app.routers import analytics, calendar_routes, settings_routes, export
 
 
+# ─── DB initialization flag (for serverless fallback) ─────────────────────────
+_db_initialized = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize DB on startup."""
+    global _db_initialized
     await init_db()
+    _db_initialized = True
     yield
 
 
@@ -32,6 +38,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ─── Serverless DB init middleware (Vercel doesn't always fire lifespan) ──────
+@app.middleware("http")
+async def ensure_db_initialized(request: Request, call_next):
+    global _db_initialized
+    if not _db_initialized:
+        await init_db()
+        _db_initialized = True
+    return await call_next(request)
 
 # ─── Core Routers ─────────────────────────────────────────────────────────────
 app.include_router(candidates.router)

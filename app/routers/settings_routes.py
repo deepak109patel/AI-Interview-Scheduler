@@ -3,29 +3,31 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from app.schemas import SettingsUpdate, ApiKeyTest
 from app.database import get_db
-import aiosqlite
+from datetime import datetime
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
 
 @router.get("/")
-async def get_settings(db: aiosqlite.Connection = Depends(get_db)):
+async def get_settings(db=Depends(get_db)):
     """Get all settings."""
-    cur = await db.execute("SELECT key, value FROM settings")
-    rows = await cur.fetchall()
-    return {row["key"]: row["value"] for row in rows}
+    settings = {}
+    async for doc in db.settings.find():
+        settings[doc["key"]] = doc["value"]
+    return settings
 
 
 @router.put("/")
-async def update_settings(payload: SettingsUpdate, db: aiosqlite.Connection = Depends(get_db)):
+async def update_settings(payload: SettingsUpdate, db=Depends(get_db)):
     """Update settings."""
     updates = {k: v for k, v in payload.dict().items() if v is not None}
+    now = datetime.utcnow().isoformat()
     for key, value in updates.items():
-        await db.execute(
-            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
-            (key, value),
+        await db.settings.update_one(
+            {"key": key},
+            {"$set": {"key": key, "value": value, "updated_at": now}},
+            upsert=True,
         )
-    await db.commit()
     return {"message": "Settings updated", "updated": list(updates.keys())}
 
 

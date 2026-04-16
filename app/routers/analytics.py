@@ -1,60 +1,63 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from app.database import get_db
-import aiosqlite
+from app.database import get_db, clean_doc
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
 @router.get("/stats")
-async def dashboard_stats(db: aiosqlite.Connection = Depends(get_db)):
+async def dashboard_stats(db=Depends(get_db)):
     """Get comprehensive dashboard statistics."""
     # Total candidates
-    cur = await db.execute("SELECT COUNT(*) as cnt FROM candidates")
-    total_candidates = (await cur.fetchone())["cnt"]
+    total_candidates = await db.candidates.count_documents({})
 
     # Candidates by status
-    cur = await db.execute("SELECT status, COUNT(*) as count FROM candidates GROUP BY status")
-    status_rows = await cur.fetchall()
-    candidates_by_status = {r["status"]: r["count"] for r in status_rows}
+    candidates_by_status = {}
+    async for row in db.candidates.aggregate([
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]):
+        candidates_by_status[row["_id"]] = row["count"]
 
     # Active sessions
-    cur = await db.execute("SELECT COUNT(*) as cnt FROM sessions WHERE status = 'active'")
-    active_sessions = (await cur.fetchone())["cnt"]
+    active_sessions = await db.sessions.count_documents({"status": "active"})
 
     # Interviews scheduled
-    cur = await db.execute("SELECT COUNT(*) as cnt FROM interview_slots WHERE status = 'confirmed'")
-    interviews_scheduled = (await cur.fetchone())["cnt"]
+    interviews_scheduled = await db.interview_slots.count_documents({"status": "confirmed"})
 
     # Interviews cancelled
-    cur = await db.execute("SELECT COUNT(*) as cnt FROM interview_slots WHERE status = 'cancelled'")
-    interviews_cancelled = (await cur.fetchone())["cnt"]
+    interviews_cancelled = await db.interview_slots.count_documents({"status": "cancelled"})
 
-    # Total sessions for completion rate
-    cur = await db.execute("SELECT COUNT(*) as cnt FROM sessions")
-    total_sessions = (await cur.fetchone())["cnt"]
-
-    cur = await db.execute("SELECT COUNT(*) as cnt FROM sessions WHERE status = 'scheduled'")
-    completed_sessions = (await cur.fetchone())["cnt"]
-
+    # Completion rate
+    total_sessions = await db.sessions.count_documents({})
+    completed_sessions = await db.sessions.count_documents({"status": "scheduled"})
     completion_rate = (completed_sessions / total_sessions * 100) if total_sessions > 0 else 0
 
     # Sessions by status
-    cur = await db.execute("SELECT status, COUNT(*) as count FROM sessions GROUP BY status")
-    session_rows = await cur.fetchall()
-    sessions_by_status = {r["status"]: r["count"] for r in session_rows}
+    sessions_by_status = {}
+    async for row in db.sessions.aggregate([
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]):
+        sessions_by_status[row["_id"]] = row["count"]
 
     # Interviews this week
-    cur = await db.execute(
-        "SELECT COUNT(*) as cnt FROM interview_slots WHERE scheduled_time >= date('now') AND scheduled_time < date('now', '+7 days') AND status = 'confirmed'"
-    )
-    interviews_this_week = (await cur.fetchone())["cnt"]
+    now = datetime.utcnow()
+    today = now.strftime("%Y-%m-%d")
+    week_later = (now + timedelta(days=7)).strftime("%Y-%m-%d")
+    interviews_this_week = await db.interview_slots.count_documents({
+        "scheduled_time": {"$gte": today, "$lt": week_later},
+        "status": "confirmed",
+    })
 
-    # Roles distribution
-    cur = await db.execute("SELECT role, COUNT(*) as count FROM candidates GROUP BY role ORDER BY count DESC LIMIT 5")
-    role_rows = await cur.fetchall()
-    top_roles = {r["role"]: r["count"] for r in role_rows}
+    # Top roles
+    top_roles = {}
+    async for row in db.candidates.aggregate([
+        {"$group": {"_id": "$role", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 5},
+    ]):
+        top_roles[row["_id"]] = row["count"]
 
     return {
         "total_candidates": total_candidates,
@@ -70,58 +73,65 @@ async def dashboard_stats(db: aiosqlite.Connection = Depends(get_db)):
 
 
 @router.get("/timeline")
-async def dashboard_timeline(days: int = 14, db: aiosqlite.Connection = Depends(get_db)):
+async def dashboard_timeline(days: int = 14, db=Depends(get_db)):
     """Get upcoming interview timeline."""
-    cur = await db.execute(
-        """SELECT sl.id, c.name AS candidate_name, c.role, sl.scheduled_time,
-                  sl.duration_minutes, sl.status, sl.location
-           FROM interview_slots sl
-           JOIN candidates c ON sl.candidate_id = c.id
-           WHERE sl.scheduled_time >= date('now', '-1 day')
-             AND sl.scheduled_time < date('now', '+' || ? || ' days')
-           ORDER BY sl.scheduled_time ASC""",
-        (days,),
-    )
-    rows = await cur.fetchall()
-    return [dict(r) for r in rows]
+    now = datetime.utcnow()
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    future = (now + timedelta(days=days)).strftime("%Y-%m-%d")
+
+    results = []
+    async for slot in db.interview_slots.find({
+        "scheduled_time": {"$gte": yesterday, "$lt": future},
+    }).sort("scheduled_time", 1):
+        candidate = await db.candidates.find_one({"id": slot["candidate_id"]})
+        results.append({
+            "id": slot["id"],
+            "candidate_name": candidate["name"] if candidate else "Unknown",
+            "role": candidate["role"] if candidate else "",
+            "scheduled_time": slot["scheduled_time"],
+            "duration_minutes": slot["duration_minutes"],
+            "status": slot["status"],
+            "location": slot.get("location", ""),
+        })
+    return results
 
 
 @router.get("/activity")
-async def dashboard_activity(limit: int = 20, db: aiosqlite.Connection = Depends(get_db)):
+async def dashboard_activity(limit: int = 20, db=Depends(get_db)):
     """Get recent activity feed."""
-    cur = await db.execute(
-        "SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?",
-        (limit,),
-    )
-    rows = await cur.fetchall()
-    return [dict(r) for r in rows]
+    results = []
+    async for doc in db.activity_log.find().sort("created_at", -1).limit(limit):
+        results.append(clean_doc(doc))
+    return results
 
 
 @router.get("/chart/interviews-per-day")
-async def interviews_per_day(days: int = 30, db: aiosqlite.Connection = Depends(get_db)):
+async def interviews_per_day(days: int = 30, db=Depends(get_db)):
     """Get interview counts per day for charting."""
-    cur = await db.execute(
-        """SELECT date(scheduled_time) as day, COUNT(*) as count
-           FROM interview_slots
-           WHERE scheduled_time >= date('now', '-' || ? || ' days')
-           GROUP BY day
-           ORDER BY day ASC""",
-        (days,),
-    )
-    rows = await cur.fetchall()
-    return [dict(r) for r in rows]
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    results = []
+    async for row in db.interview_slots.aggregate([
+        {"$match": {"scheduled_time": {"$gte": cutoff}}},
+        {"$addFields": {"day": {"$substr": ["$scheduled_time", 0, 10]}}},
+        {"$group": {"_id": "$day", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]):
+        results.append({"day": row["_id"], "count": row["count"]})
+    return results
 
 
 @router.get("/chart/candidates-per-week")
-async def candidates_per_week(weeks: int = 8, db: aiosqlite.Connection = Depends(get_db)):
+async def candidates_per_week(weeks: int = 8, db=Depends(get_db)):
     """Get new candidates per week for charting."""
-    cur = await db.execute(
-        """SELECT strftime('%Y-W%W', created_at) as week, COUNT(*) as count
-           FROM candidates
-           WHERE created_at >= date('now', '-' || ? || ' days')
-           GROUP BY week
-           ORDER BY week ASC""",
-        (weeks * 7,),
-    )
-    rows = await cur.fetchall()
-    return [dict(r) for r in rows]
+    cutoff = (datetime.utcnow() - timedelta(weeks=weeks)).strftime("%Y-%m-%d")
+
+    results = []
+    async for row in db.candidates.aggregate([
+        {"$match": {"created_at": {"$gte": cutoff}}},
+        {"$addFields": {"week": {"$substr": ["$created_at", 0, 10]}}},
+        {"$group": {"_id": "$week", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]):
+        results.append({"week": row["_id"], "count": row["count"]})
+    return results

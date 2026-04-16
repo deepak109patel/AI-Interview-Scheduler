@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from app.schemas import RescheduleRequest
-from app.database import get_db, log_activity
+from app.database import get_db, log_activity, clean_doc
 from app.services.scheduler import parse_datetime
-import aiosqlite
 
 router = APIRouter(prefix="/api/calendar", tags=["Calendar"])
 
@@ -14,46 +13,45 @@ async def get_calendar_events(
     start: str = Query(None, description="Start date YYYY-MM-DD"),
     end: str = Query(None, description="End date YYYY-MM-DD"),
     status: str = Query(None, description="Filter by status"),
-    db: aiosqlite.Connection = Depends(get_db),
+    db=Depends(get_db),
 ):
     """Get interview events for calendar view."""
-    query = """SELECT sl.id, c.name AS candidate_name, c.email AS candidate_email,
-                      c.role, sl.scheduled_time, sl.duration_minutes,
-                      sl.location, sl.status, sl.notes
-               FROM interview_slots sl
-               JOIN candidates c ON sl.candidate_id = c.id
-               WHERE 1=1"""
-    params = []
+    conditions = []
 
     if start:
-        query += " AND sl.scheduled_time >= ?"
-        params.append(start)
+        conditions.append({"scheduled_time": {"$gte": start}})
     if end:
-        query += " AND sl.scheduled_time <= ?"
-        params.append(end + " 23:59:59")
+        conditions.append({"scheduled_time": {"$lte": end + " 23:59:59"}})
     if status:
-        query += " AND sl.status = ?"
-        params.append(status)
+        conditions.append({"status": status})
 
-    query += " ORDER BY sl.scheduled_time ASC"
+    query = {"$and": conditions} if len(conditions) > 1 else (conditions[0] if conditions else {})
 
-    cur = await db.execute(query, params)
-    rows = await cur.fetchall()
-    return [dict(r) for r in rows]
+    results = []
+    async for slot in db.interview_slots.find(query).sort("scheduled_time", 1):
+        candidate = await db.candidates.find_one({"id": slot["candidate_id"]})
+        results.append({
+            "id": slot["id"],
+            "candidate_name": candidate["name"] if candidate else "",
+            "candidate_email": candidate["email"] if candidate else "",
+            "role": candidate["role"] if candidate else "",
+            "scheduled_time": slot["scheduled_time"],
+            "duration_minutes": slot["duration_minutes"],
+            "location": slot.get("location", ""),
+            "status": slot["status"],
+            "notes": slot.get("notes"),
+        })
+    return results
 
 
 @router.put("/events/{slot_id}/reschedule")
 async def reschedule_event(
     slot_id: int,
     payload: RescheduleRequest,
-    db: aiosqlite.Connection = Depends(get_db),
+    db=Depends(get_db),
 ):
     """Reschedule an interview to a new datetime."""
-    cur = await db.execute(
-        "SELECT sl.*, c.name FROM interview_slots sl JOIN candidates c ON sl.candidate_id = c.id WHERE sl.id = ?",
-        (slot_id,),
-    )
-    slot = await cur.fetchone()
+    slot = await db.interview_slots.find_one({"id": slot_id})
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found.")
 
@@ -61,28 +59,29 @@ async def reschedule_event(
     if not dt:
         raise HTTPException(status_code=400, detail="Invalid datetime format. Use YYYY-MM-DD HH:MM.")
 
-    await db.execute(
-        "UPDATE interview_slots SET scheduled_time = ?, status = 'confirmed' WHERE id = ?",
-        (dt.isoformat(), slot_id),
+    candidate = await db.candidates.find_one({"id": slot["candidate_id"]})
+    candidate_name = candidate["name"] if candidate else "Unknown"
+
+    await db.interview_slots.update_one(
+        {"id": slot_id},
+        {"$set": {"scheduled_time": dt.isoformat(), "status": "confirmed"}},
     )
-    await db.commit()
-    await log_activity(db, "rescheduled", "interview", slot_id, f"Rescheduled {slot['name']} to {dt}")
+    await log_activity(db, "rescheduled", "interview", slot_id, f"Rescheduled {candidate_name} to {dt}")
 
     return {"message": f"Interview rescheduled to {dt.strftime('%A, %B %d %Y at %I:%M %p')}"}
 
 
 @router.get("/events/{slot_id}")
-async def get_event_detail(slot_id: int, db: aiosqlite.Connection = Depends(get_db)):
+async def get_event_detail(slot_id: int, db=Depends(get_db)):
     """Get detailed event info."""
-    cur = await db.execute(
-        """SELECT sl.*, c.name AS candidate_name, c.email AS candidate_email,
-                  c.phone AS candidate_phone, c.role
-           FROM interview_slots sl
-           JOIN candidates c ON sl.candidate_id = c.id
-           WHERE sl.id = ?""",
-        (slot_id,),
-    )
-    row = await cur.fetchone()
-    if not row:
+    slot = await db.interview_slots.find_one({"id": slot_id})
+    if not slot:
         raise HTTPException(status_code=404, detail="Event not found.")
-    return dict(row)
+
+    candidate = await db.candidates.find_one({"id": slot["candidate_id"]})
+    doc = clean_doc(slot)
+    doc["candidate_name"] = candidate["name"] if candidate else ""
+    doc["candidate_email"] = candidate["email"] if candidate else ""
+    doc["candidate_phone"] = candidate.get("phone", "") if candidate else ""
+    doc["role"] = candidate["role"] if candidate else ""
+    return doc

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from app.database import get_db
-import aiosqlite
+from app.database import get_db, clean_doc
 import csv
 import io
 import json
@@ -15,25 +14,28 @@ router = APIRouter(prefix="/api/export", tags=["Export"])
 async def export_interviews(
     format: str = Query("csv", description="Export format: csv or json"),
     status: str = Query(None, description="Filter by status"),
-    db: aiosqlite.Connection = Depends(get_db),
+    db=Depends(get_db),
 ):
     """Export interview slots as CSV or JSON."""
-    query = """SELECT sl.id, c.name AS candidate_name, c.email AS candidate_email,
-                      c.role, sl.scheduled_time, sl.duration_minutes,
-                      sl.location, sl.status, sl.notes, sl.created_at
-               FROM interview_slots sl
-               JOIN candidates c ON sl.candidate_id = c.id"""
-    params = []
-
+    query = {}
     if status:
-        query += " WHERE sl.status = ?"
-        params.append(status)
+        query["status"] = status
 
-    query += " ORDER BY sl.scheduled_time ASC"
-
-    cur = await db.execute(query, params)
-    rows = await cur.fetchall()
-    data = [dict(r) for r in rows]
+    data = []
+    async for slot in db.interview_slots.find(query).sort("scheduled_time", 1):
+        candidate = await db.candidates.find_one({"id": slot["candidate_id"]})
+        data.append({
+            "id": slot["id"],
+            "candidate_name": candidate["name"] if candidate else "",
+            "candidate_email": candidate["email"] if candidate else "",
+            "role": candidate["role"] if candidate else "",
+            "scheduled_time": slot["scheduled_time"],
+            "duration_minutes": slot["duration_minutes"],
+            "location": slot.get("location", ""),
+            "status": slot["status"],
+            "notes": slot.get("notes"),
+            "created_at": slot["created_at"],
+        })
 
     if format == "json":
         return StreamingResponse(
@@ -61,12 +63,20 @@ async def export_interviews(
 @router.get("/candidates")
 async def export_candidates(
     format: str = Query("csv"),
-    db: aiosqlite.Connection = Depends(get_db),
+    db=Depends(get_db),
 ):
     """Export all candidates."""
-    cur = await db.execute("SELECT id, name, email, phone, role, status, created_at FROM candidates ORDER BY name")
-    rows = await cur.fetchall()
-    data = [dict(r) for r in rows]
+    data = []
+    async for doc in db.candidates.find().sort("name", 1):
+        data.append({
+            "id": doc["id"],
+            "name": doc["name"],
+            "email": doc["email"],
+            "phone": doc.get("phone"),
+            "role": doc["role"],
+            "status": doc["status"],
+            "created_at": doc["created_at"],
+        })
 
     if format == "json":
         return StreamingResponse(
@@ -89,37 +99,39 @@ async def export_candidates(
 
 
 @router.get("/report/{candidate_id}")
-async def candidate_report(candidate_id: int, db: aiosqlite.Connection = Depends(get_db)):
+async def candidate_report(candidate_id: int, db=Depends(get_db)):
     """Generate a detailed report for a candidate."""
-    # Candidate info
-    cur = await db.execute("SELECT * FROM candidates WHERE id = ?", (candidate_id,))
-    candidate = await cur.fetchone()
+    candidate = await db.candidates.find_one({"id": candidate_id})
     if not candidate:
         return {"error": "Candidate not found"}
 
     # Sessions
-    cur = await db.execute(
-        "SELECT id, status, created_at FROM sessions WHERE candidate_id = ? ORDER BY created_at DESC",
-        (candidate_id,),
-    )
-    sessions = [dict(s) for s in await cur.fetchall()]
+    sessions = []
+    async for s in db.sessions.find({"candidate_id": candidate_id}).sort("created_at", -1):
+        sessions.append({
+            "id": s["id"],
+            "status": s["status"],
+            "created_at": s["created_at"],
+        })
 
     # Interviews
-    cur = await db.execute(
-        "SELECT scheduled_time, duration_minutes, location, status FROM interview_slots WHERE candidate_id = ?",
-        (candidate_id,),
-    )
-    interviews = [dict(s) for s in await cur.fetchall()]
+    interviews = []
+    async for s in db.interview_slots.find({"candidate_id": candidate_id}):
+        interviews.append({
+            "scheduled_time": s["scheduled_time"],
+            "duration_minutes": s["duration_minutes"],
+            "location": s.get("location", ""),
+            "status": s["status"],
+        })
 
     # Message count
-    session_ids = [s["id"] for s in sessions]
     msg_count = 0
-    for sid in session_ids:
-        cur = await db.execute("SELECT COUNT(*) as cnt FROM messages WHERE session_id = ?", (sid,))
-        msg_count += (await cur.fetchone())["cnt"]
+    for sess in sessions:
+        count = await db.messages.count_documents({"session_id": sess["id"]})
+        msg_count += count
 
     return {
-        "candidate": dict(candidate),
+        "candidate": clean_doc(candidate),
         "total_sessions": len(sessions),
         "total_messages": msg_count,
         "sessions": sessions,

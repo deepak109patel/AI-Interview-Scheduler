@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from app.schemas import CandidateCreate, CandidateOut, CandidateUpdate
-from app.database import get_db, log_activity
-import aiosqlite
+from app.database import get_db, get_next_id, log_activity, clean_doc
+from pymongo.errors import DuplicateKeyError
+from datetime import datetime
 import csv
 import io
 
@@ -13,22 +14,28 @@ VALID_STATUSES = {"applied", "screening", "interview", "hired", "rejected"}
 
 
 @router.post("/", response_model=CandidateOut, status_code=201)
-async def add_candidate(payload: CandidateCreate, db: aiosqlite.Connection = Depends(get_db)):
+async def add_candidate(payload: CandidateCreate, db=Depends(get_db)):
     """Add a new candidate to the system."""
+    now = datetime.utcnow().isoformat()
+    candidate_id = await get_next_id("candidates")
+    doc = {
+        "id": candidate_id,
+        "name": payload.name,
+        "email": payload.email,
+        "phone": payload.phone,
+        "role": payload.role,
+        "status": "applied",
+        "notes": None,
+        "created_at": now,
+        "updated_at": now,
+    }
     try:
-        cursor = await db.execute(
-            "INSERT INTO candidates (name, email, phone, role) VALUES (?, ?, ?, ?)",
-            (payload.name, payload.email, payload.phone, payload.role),
-        )
-        await db.commit()
-        row = await db.execute(
-            "SELECT * FROM candidates WHERE id = ?", (cursor.lastrowid,)
-        )
-        candidate = await row.fetchone()
-        await log_activity(db, "created", "candidate", cursor.lastrowid, f"Added candidate: {payload.name}")
-        return dict(candidate)
-    except aiosqlite.IntegrityError:
+        await db.candidates.insert_one(doc)
+    except DuplicateKeyError:
         raise HTTPException(status_code=409, detail="A candidate with this email already exists.")
+
+    await log_activity(db, "created", "candidate", candidate_id, f"Added candidate: {payload.name}")
+    return clean_doc(doc)
 
 
 @router.get("/", response_model=list[CandidateOut])
@@ -37,104 +44,97 @@ async def list_candidates(
     status: str = Query(None, description="Filter by status"),
     role: str = Query(None, description="Filter by role"),
     sort: str = Query("newest", description="Sort: newest, oldest, name"),
-    db: aiosqlite.Connection = Depends(get_db),
+    db=Depends(get_db),
 ):
     """List all candidates with optional search and filters."""
-    query = "SELECT * FROM candidates WHERE 1=1"
-    params = []
+    conditions = []
 
     if search:
-        query += " AND (name LIKE ? OR email LIKE ? OR role LIKE ?)"
-        params.extend([f"%{search}%"] * 3)
+        regex = {"$regex": search, "$options": "i"}
+        conditions.append({"$or": [{"name": regex}, {"email": regex}, {"role": regex}]})
 
     if status:
-        query += " AND status = ?"
-        params.append(status)
+        conditions.append({"status": status})
 
     if role:
-        query += " AND role LIKE ?"
-        params.append(f"%{role}%")
+        conditions.append({"role": {"$regex": role, "$options": "i"}})
 
+    query = {"$and": conditions} if len(conditions) > 1 else (conditions[0] if conditions else {})
+
+    sort_key = [("created_at", -1)]  # newest
     if sort == "oldest":
-        query += " ORDER BY created_at ASC"
+        sort_key = [("created_at", 1)]
     elif sort == "name":
-        query += " ORDER BY name ASC"
-    else:
-        query += " ORDER BY created_at DESC"
+        sort_key = [("name", 1)]
 
-    cursor = await db.execute(query, params)
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    results = []
+    async for doc in db.candidates.find(query).sort(sort_key):
+        results.append(clean_doc(doc))
+    return results
 
 
 @router.get("/stats")
-async def candidate_stats(db: aiosqlite.Connection = Depends(get_db)):
+async def candidate_stats(db=Depends(get_db)):
     """Get candidate pipeline statistics."""
-    cursor = await db.execute(
-        "SELECT status, COUNT(*) as count FROM candidates GROUP BY status"
-    )
-    rows = await cursor.fetchall()
-    stats = {row["status"]: row["count"] for row in rows}
+    stats = {}
+    async for row in db.candidates.aggregate([
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]):
+        stats[row["_id"]] = row["count"]
 
-    total = await db.execute("SELECT COUNT(*) as cnt FROM candidates")
-    total_row = await total.fetchone()
+    total = await db.candidates.count_documents({})
 
     return {
-        "total": total_row["cnt"],
+        "total": total,
         "by_status": stats,
     }
 
 
 @router.get("/{candidate_id}", response_model=CandidateOut)
-async def get_candidate(candidate_id: int, db: aiosqlite.Connection = Depends(get_db)):
+async def get_candidate(candidate_id: int, db=Depends(get_db)):
     """Get a single candidate by ID."""
-    cursor = await db.execute("SELECT * FROM candidates WHERE id = ?", (candidate_id,))
-    row = await cursor.fetchone()
-    if not row:
+    doc = await db.candidates.find_one({"id": candidate_id})
+    if not doc:
         raise HTTPException(status_code=404, detail="Candidate not found.")
-    return dict(row)
+    return clean_doc(doc)
 
 
 @router.get("/{candidate_id}/detail")
-async def get_candidate_detail(candidate_id: int, db: aiosqlite.Connection = Depends(get_db)):
+async def get_candidate_detail(candidate_id: int, db=Depends(get_db)):
     """Get full candidate profile with sessions and interviews."""
-    cursor = await db.execute("SELECT * FROM candidates WHERE id = ?", (candidate_id,))
-    candidate = await cursor.fetchone()
+    candidate = await db.candidates.find_one({"id": candidate_id})
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found.")
 
     # Get sessions
-    sess_cur = await db.execute(
-        "SELECT * FROM sessions WHERE candidate_id = ? ORDER BY created_at DESC",
-        (candidate_id,),
-    )
-    sessions = [dict(s) for s in await sess_cur.fetchall()]
+    sessions = []
+    async for s in db.sessions.find({"candidate_id": candidate_id}).sort("created_at", -1):
+        sessions.append(clean_doc(s))
 
     # Get interview slots
-    slot_cur = await db.execute(
-        """SELECT sl.*, c.name AS candidate_name, c.email AS candidate_email, c.role
-           FROM interview_slots sl JOIN candidates c ON sl.candidate_id = c.id
-           WHERE sl.candidate_id = ? ORDER BY sl.scheduled_time DESC""",
-        (candidate_id,),
-    )
-    interviews = [dict(s) for s in await slot_cur.fetchall()]
+    interviews = []
+    async for s in db.interview_slots.find({"candidate_id": candidate_id}).sort("scheduled_time", -1):
+        slot = clean_doc(s)
+        slot["candidate_name"] = candidate["name"]
+        slot["candidate_email"] = candidate["email"]
+        slot["role"] = candidate["role"]
+        interviews.append(slot)
 
-    return {
-        **dict(candidate),
-        "sessions": sessions,
-        "interviews": interviews,
-    }
+    result = clean_doc(candidate)
+    result["sessions"] = sessions
+    result["interviews"] = interviews
+    return result
 
 
 @router.put("/{candidate_id}", response_model=CandidateOut)
 async def update_candidate(
     candidate_id: int,
     payload: CandidateUpdate,
-    db: aiosqlite.Connection = Depends(get_db),
+    db=Depends(get_db),
 ):
     """Update candidate details."""
-    cursor = await db.execute("SELECT * FROM candidates WHERE id = ?", (candidate_id,))
-    if not await cursor.fetchone():
+    existing = await db.candidates.find_one({"id": candidate_id})
+    if not existing:
         raise HTTPException(status_code=404, detail="Candidate not found.")
 
     updates = {k: v for k, v in payload.dict().items() if v is not None}
@@ -144,40 +144,39 @@ async def update_candidate(
     if "status" in updates and updates["status"] not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {VALID_STATUSES}")
 
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
-    values = list(updates.values()) + [candidate_id]
+    updates["updated_at"] = datetime.utcnow().isoformat()
+    await db.candidates.update_one({"id": candidate_id}, {"$set": updates})
 
-    await db.execute(
-        f"UPDATE candidates SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        values,
-    )
-    await db.commit()
-
-    cursor = await db.execute("SELECT * FROM candidates WHERE id = ?", (candidate_id,))
-    row = await cursor.fetchone()
+    updated = await db.candidates.find_one({"id": candidate_id})
     await log_activity(db, "updated", "candidate", candidate_id, f"Updated: {list(updates.keys())}")
-    return dict(row)
+    return clean_doc(updated)
 
 
 @router.delete("/{candidate_id}", status_code=204)
-async def delete_candidate(candidate_id: int, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_candidate(candidate_id: int, db=Depends(get_db)):
     """Delete a candidate and all related data."""
-    cursor = await db.execute("SELECT name FROM candidates WHERE id = ?", (candidate_id,))
-    row = await cursor.fetchone()
-    if not row:
+    candidate = await db.candidates.find_one({"id": candidate_id})
+    if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found.")
 
-    await db.execute("DELETE FROM messages WHERE session_id IN (SELECT id FROM sessions WHERE candidate_id = ?)", (candidate_id,))
-    await db.execute("DELETE FROM sessions WHERE candidate_id = ?", (candidate_id,))
-    await db.execute("DELETE FROM interview_slots WHERE candidate_id = ?", (candidate_id,))
-    await db.execute("DELETE FROM notifications WHERE candidate_id = ?", (candidate_id,))
-    await db.execute("DELETE FROM candidates WHERE id = ?", (candidate_id,))
-    await db.commit()
-    await log_activity(db, "deleted", "candidate", candidate_id, f"Deleted candidate: {row['name']}")
+    # Get session IDs for this candidate
+    session_ids = []
+    async for s in db.sessions.find({"candidate_id": candidate_id}):
+        session_ids.append(s["id"])
+
+    # Delete related data
+    if session_ids:
+        await db.messages.delete_many({"session_id": {"$in": session_ids}})
+    await db.sessions.delete_many({"candidate_id": candidate_id})
+    await db.interview_slots.delete_many({"candidate_id": candidate_id})
+    await db.notifications.delete_many({"candidate_id": candidate_id})
+    await db.candidates.delete_one({"id": candidate_id})
+
+    await log_activity(db, "deleted", "candidate", candidate_id, f"Deleted candidate: {candidate['name']}")
 
 
 @router.post("/import", status_code=201)
-async def import_candidates_csv(file: UploadFile = File(...), db: aiosqlite.Connection = Depends(get_db)):
+async def import_candidates_csv(file: UploadFile = File(...), db=Depends(get_db)):
     """Bulk import candidates from CSV. Expected columns: name, email, phone, role."""
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
@@ -202,16 +201,24 @@ async def import_candidates_csv(file: UploadFile = File(...), db: aiosqlite.Conn
             continue
 
         try:
-            await db.execute(
-                "INSERT INTO candidates (name, email, phone, role) VALUES (?, ?, ?, ?)",
-                (name, email, phone or None, role),
-            )
+            candidate_id = await get_next_id("candidates")
+            now = datetime.utcnow().isoformat()
+            await db.candidates.insert_one({
+                "id": candidate_id,
+                "name": name,
+                "email": email,
+                "phone": phone or None,
+                "role": role,
+                "status": "applied",
+                "notes": None,
+                "created_at": now,
+                "updated_at": now,
+            })
             imported += 1
-        except aiosqlite.IntegrityError:
+        except DuplicateKeyError:
             skipped += 1
             errors.append(f"Row {i}: duplicate email {email}")
 
-    await db.commit()
     await log_activity(db, "imported", "candidate", None, f"CSV import: {imported} added, {skipped} skipped")
 
     return {
