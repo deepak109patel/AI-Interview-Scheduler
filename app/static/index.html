@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Interview Scheduler — Dashboard</title>
+  <meta name="description" content="AI-powered interview scheduling platform — manage candidates, schedule interviews, and track your hiring pipeline."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       DESIGN SYSTEM — Premium Dark Glassmorphism
+       ══════════════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:          #06070d;
+      --bg2:         #0c0e1a;
+      --surface:     rgba(18, 22, 42, 0.7);
+      --surface2:    rgba(25, 30, 58, 0.6);
+      --card:        rgba(22, 27, 52, 0.65);
+      --card-hover:  rgba(30, 36, 68, 0.75);
+      --border:      rgba(60, 70, 120, 0.25);
+      --border-h:    rgba(100, 110, 200, 0.4);
+      --accent:      #6c63ff;
+      --accent2:     #a78bfa;
+      --accent3:     #818cf8;
+      --green:       #22c55e;
+      --green-bg:    rgba(34, 197, 94, 0.1);
+      --yellow:      #eab308;
+      --yellow-bg:   rgba(234, 179, 8, 0.1);
+      --red:         #ef4444;
+      --red-bg:      rgba(239, 68, 68, 0.1);
+      --blue:        #3b82f6;
+      --blue-bg:     rgba(59, 130, 246, 0.1);
+      --cyan:        #06b6d4;
+      --text:        #e2e8f0;
+      --text2:       #cbd5e1;
+      --muted:       #64748b;
+      --bubble-ai:   rgba(30, 35, 64, 0.8);
+      --bubble-u:    rgba(61, 53, 168, 0.8);
+      --radius:      16px;
+      --radius-sm:   10px;
+      --radius-xs:   8px;
+      --glass:       blur(20px) saturate(1.8);
+      --shadow:      0 8px 32px rgba(0,0,0,.45);
+      --shadow-glow: 0 0 40px rgba(108, 99, 255, 0.15);
+      --transition:  all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 20% 10%, rgba(108,99,255,0.08), transparent),
+        radial-gradient(ellipse 500px 350px at 80% 80%, rgba(139,92,246,0.06), transparent),
+        radial-gradient(ellipse 400px 300px at 50% 50%, rgba(6,182,212,0.04), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Scrollbar ────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(100,110,200,0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100,110,200,0.5); }
+
+    /* ══ NAVBAR ═══════════════════════════════════════════ */
+    .navbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10, 12, 24, 0.85);
+      backdrop-filter: var(--glass);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center;
+      height: 64px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: .75rem;
+      margin-right: 2.5rem; text-decoration: none; color: var(--text);
+    }
+    .nav-logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 1.15rem;
+      box-shadow: 0 0 24px rgba(108,99,255,0.35);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+    @keyframes logoPulse {
+      0%,100% { box-shadow: 0 0 24px rgba(108,99,255,0.35); }
+      50% { box-shadow: 0 0 36px rgba(108,99,255,0.55); }
+    }
+    .nav-brand h1 { font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .nav-brand small { font-size: .7rem; color: var(--muted); margin-top: 1px; }
+
+    .nav-links {
+      display: flex; gap: .25rem; list-style: none;
+    }
+    .nav-links a {
+      text-decoration: none; color: var(--muted);
+      padding: .5rem 1rem; border-radius: var(--radius-xs);
+      font-size: .82rem; font-weight: 500;
+      transition: var(--transition);
+      display: flex; align-items: center; gap: .45rem;
+    }
+    .nav-links a:hover { color: var(--text); background: var(--surface2); }
+    .nav-links a.active {
+      color: var(--accent2);
+      background: rgba(108,99,255,0.12);
+    }
+    .nav-right {
+      margin-left: auto;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .nav-status {
+      display: flex; align-items: center; gap: .4rem;
+      font-size: .75rem; color: var(--green); font-weight: 500;
+    }
+    .nav-status::before {
+      content:''; width: 7px; height: 7px;
+      background: var(--green); border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50% { opacity:.5; transform:scale(1.5); }
+    }
+
+    /* ══ MAIN CONTENT ════════════════════════════════════ */
+    .app-content {
+      position: relative; z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3rem;
+    }
+    .page { display: none; animation: fadeIn 0.35s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Typography ───────────────────────────────────── */
+    .page-title {
+      font-size: 1.6rem; font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--text), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: .25rem;
+    }
+    .page-subtitle { font-size: .88rem; color: var(--muted); margin-bottom: 1.5rem; }
+
+    /* ── Glass Card ───────────────────────────────────── */
+    .glass {
+      background: var(--card);
+      backdrop-filter: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: var(--transition);
+    }
+    .glass:hover {
+      border-color: var(--border-h);
+      box-shadow: var(--shadow-glow);
+    }
+
+    /* ── Buttons ──────────────────────────────────────── */
+    .btn {
+      border: none; cursor: pointer;
+      font-family: inherit; font-weight: 600;
+      border-radius: var(--radius-xs);
+      transition: var(--transition);
+      display: inline-flex; align-items: center;
+      justify-content: center; gap: .45rem;
+      font-size: .82rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff; padding: .6rem 1.2rem;
+      box-shadow: 0 4px 18px rgba(108,99,255,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(108,99,255,0.45); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text); padding: .5rem 1rem;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent2); }
+    .btn-sm { padding: .35rem .7rem; font-size: .75rem; border-radius: 6px; }
+    .btn-icon {
+      width: 36px; height: 36px; border-radius: var(--radius-xs);
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); display: grid; place-items: center;
+    }
+    .btn-icon:hover { border-color: var(--accent); background: rgba(108,99,255,0.1); }
+    .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); padding: .5rem 1rem; }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+    /* ── Inputs ───────────────────────────────────────── */
+    input, select, textarea {
+      background: rgba(15, 18, 35, 0.8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      padding: .6rem .9rem;
+      color: var(--text);
+      font-size: .85rem;
+      font-family: inherit;
+      transition: var(--transition);
+      outline: none; width: 100%;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    label { font-size: .78rem; color: var(--muted); font-weight: 500; margin-bottom: .3rem; display: block; }
+    .form-group { display: flex; flex-direction: column; gap: .25rem; }
+
+    /* ── Badge ────────────────────────────────────────── */
+    .badge {
+      padding: .2rem .55rem; border-radius: 20px;
+      font-size: .68rem; font-weight: 600;
+      display: inline-flex; align-items: center; gap: .3rem;
+    }
+    .badge-active    { background: rgba(108,99,255,.15); color: var(--accent2); }
+    .badge-scheduled { background: var(--green-bg); color: var(--green); }
+    .badge-confirmed { background: var(--green-bg); color: var(--green); }
+    .badge-cancelled { background: var(--red-bg); color: var(--red); }
+    .badge-applied   { background: var(--blue-bg); color: var(--blue); }
+    .badge-screening { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-interview { background: rgba(108,99,255,.15); color: var(--accent2); }
+    .badge-hired     { background: var(--green-bg); color: var(--green); }
+    .badge-rejected  { background: var(--red-bg); color: var(--red); }
+    .badge-completed { background: var(--green-bg); color: var(--green); }
+
+    /* ══ DASHBOARD PAGE ══════════════════════════════════ */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+      padding: 1.25rem;
+      display: flex; align-items: flex-start; gap: 1rem;
+    }
+    .kpi-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: grid; place-items: center;
+      font-size: 1.3rem; flex-shrink: 0;
+    }
+    .kpi-icon.purple { background: rgba(108,99,255,0.15); }
+    .kpi-icon.green  { background: var(--green-bg); }
+    .kpi-icon.blue   { background: var(--blue-bg); }
+    .kpi-icon.yellow { background: var(--yellow-bg); }
+    .kpi-icon.red    { background: var(--red-bg); }
+    .kpi-icon.cyan   { background: rgba(6,182,212,0.1); }
+    .kpi-value { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+    .kpi-label { font-size: .78rem; color: var(--muted); margin-top: .25rem; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .chart-card { padding: 1.25rem; }
+    .chart-card h3 { font-size: .88rem; font-weight: 600; margin-bottom: 1rem; }
+    .chart-wrapper { position: relative; height: 260px; }
+
+    .activity-feed { padding: 1.25rem; }
+    .activity-feed h3 { font-size: .88rem; font-weight: 600; margin-bottom: 1rem; }
+    .activity-item {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .65rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      margin-top: .35rem; flex-shrink: 0;
+    }
+    .activity-dot.created  { background: var(--green); }
+    .activity-dot.updated  { background: var(--blue); }
+    .activity-dot.deleted  { background: var(--red); }
+    .activity-dot.imported { background: var(--yellow); }
+    .activity-dot.scheduled { background: var(--accent2); }
+    .activity-dot.rescheduled { background: var(--cyan); }
+    .activity-text { font-size: .82rem; color: var(--text2); }
+    .activity-time { font-size: .7rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ══ CANDIDATES PAGE ═════════════════════════════════ */
+    .candidates-toolbar {
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1; min-width: 200px;
+      position: relative;
+    }
+    .search-box input { padding-left: 2.2rem; }
+    .search-box::before {
+      content: '🔍'; position: absolute;
+      left: .75rem; top: 50%; transform: translateY(-50%);
+      font-size: .85rem;
+    }
+    .filter-select { width: auto; min-width: 140px; }
+
+    .candidates-table-wrap { overflow-x: auto; }
+    .candidates-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .candidates-table th {
+      text-align: left;
+      padding: .7rem 1rem;
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--card);
+    }
+    .candidates-table td {
+      padding: .75rem 1rem;
+      font-size: .84rem;
+      border-bottom: 1px solid rgba(60,70,120,0.12);
+      vertical-align: middle;
+    }
+    .candidates-table tr:hover td {
+      background: rgba(108,99,255,0.04);
+    }
+    .cand-name-cell {
+      display: flex; align-items: center; gap: .65rem;
+    }
+    .avatar-sm {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: grid; place-items: center;
+      font-weight: 700; font-size: .72rem;
+      flex-shrink: 0; color: #fff;
+    }
+    .td-actions { display: flex; gap: .35rem; }
+
+    .pipeline-view {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .75rem; margin-bottom: 1.5rem;
+    }
+    .pipeline-col {
+      padding: 1rem;
+      min-height: 120px;
+    }
+    .pipeline-col h4 {
+      font-size: .75rem; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted);
+      margin-bottom: .75rem;
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .pipeline-count {
+      background: var(--surface2);
+      padding: .1rem .45rem; border-radius: 10px;
+      font-size: .68rem;
+    }
+    .pipeline-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xs);
+      padding: .6rem .75rem;
+      margin-bottom: .4rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .pipeline-card:hover { border-color: var(--accent); transform: translateX(2px); }
+    .pipeline-card h5 { font-size: .8rem; font-weight: 600; }
+    .pipeline-card p { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+
+    /* ══ CALENDAR PAGE ═══════════════════════════════════ */
+    .calendar-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .calendar-nav { display: flex; align-items: center; gap: .5rem; }
+    .calendar-nav h3 { font-size: 1.1rem; font-weight: 700; min-width: 180px; text-align: center; }
+    .calendar-views { display: flex; gap: .25rem; }
+    .calendar-views button {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted); padding: .4rem .8rem;
+      border-radius: 6px; font-size: .78rem;
+      font-family: inherit; cursor: pointer;
+      transition: var(--transition);
+    }
+    .calendar-views button.active {
+      background: rgba(108,99,255,0.15);
+      border-color: var(--accent);
+      color: var(--accent2);
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .cal-day-header {
+      background: var(--card);
+      padding: .5rem;
+      text-align: center;
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .cal-day {
+      background: rgba(15,18,35,0.6);
+      min-height: 110px;
+      padding: .4rem;
+      position: relative;
+    }
+    .cal-day.today { background: rgba(108,99,255,0.06); }
+    .cal-day.other-month { opacity: .35; }
+    .cal-day-num {
+      font-size: .78rem; font-weight: 600;
+      margin-bottom: .3rem;
+      color: var(--text2);
+    }
+    .cal-day.today .cal-day-num {
+      background: var(--accent);
+      color: #fff;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+    }
+    .cal-event {
+      background: rgba(108,99,255,0.2);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      padding: .2rem .35rem;
+      font-size: .68rem;
+      margin-bottom: .2rem;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cal-event:hover { background: rgba(108,99,255,0.35); }
+    .cal-event.cancelled { background: var(--red-bg); border-color: var(--red); }
+    .cal-event.confirmed { background: rgba(34,197,94,0.12); border-color: var(--green); }
+
+    /* ══ CHAT PAGE ═══════════════════════════════════════ */
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 1rem;
+      height: calc(100vh - 140px);
+    }
+    .chat-sidebar { overflow-y: auto; }
+    .chat-sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .chat-sidebar-header h3 { font-size: .9rem; font-weight: 600; margin-bottom: .5rem; }
+    .chat-candidate-list {
+      padding: .5rem;
+      display: flex; flex-direction: column; gap: .35rem;
+    }
+    .chat-candidate-item {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .6rem .75rem;
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .chat-candidate-item:hover { background: var(--surface2); }
+    .chat-candidate-item.active {
+      background: rgba(108,99,255,0.12);
+      border: 1px solid rgba(108,99,255,0.3);
+    }
+    .chat-candidate-item h4 { font-size: .82rem; font-weight: 600; }
+    .chat-candidate-item p { font-size: .72rem; color: var(--muted); }
+
+    .chat-main { display: flex; flex-direction: column; overflow: hidden; }
+    .chat-header-bar {
+      padding: .75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: .75rem;
+      background: var(--card);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .chat-header-bar .info h3 { font-size: .9rem; font-weight: 600; }
+    .chat-header-bar .info p { font-size: .75rem; color: var(--muted); }
+
+    #messages {
+      flex: 1; overflow-y: auto;
+      padding: 1.25rem;
+      display: flex; flex-direction: column; gap: .85rem;
+    }
+    .msg { display: flex; gap: .55rem; animation: fadeUp .3s ease; }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(8px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+    .msg.user { flex-direction: row-reverse; }
+    .msg-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      flex-shrink: 0; display: grid; place-items: center;
+      font-size: .7rem; font-weight: 700;
+    }
+    .msg.ai .msg-avatar { background: linear-gradient(135deg,var(--accent),var(--accent2)); }
+    .msg.user .msg-avatar { background: linear-gradient(135deg,#3b82f6,#06b6d4); }
+    .bubble {
+      max-width: 65%;
+      padding: .65rem .9rem;
+      border-radius: 14px;
+      font-size: .84rem;
+      line-height: 1.55;
+    }
+    .msg.ai .bubble { background: var(--bubble-ai); border-bottom-left-radius: 4px; }
+    .msg.user .bubble { background: var(--bubble-u); border-bottom-right-radius: 4px; color: #fff; }
+    .msg-time { font-size: .66rem; color: var(--muted); margin-top: .2rem; }
+    .msg.user .msg-time { text-align: right; }
+
+    .typing .bubble { display: flex; align-items: center; gap: 4px; padding: .7rem .9rem; }
+    .dot { width:6px; height:6px; background:var(--muted); border-radius:50%; animation: bounce .9s infinite; }
+    .dot:nth-child(2) { animation-delay: .15s; }
+    .dot:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); }
+      30% { transform: translateY(-5px); }
+    }
+
+    .confirm-banner {
+      background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(34,197,94,.04));
+      border: 1px solid rgba(34,197,94,.25);
+      border-radius: 12px;
+      padding: .85rem 1.1rem;
+      display: flex; align-items: center; gap: .65rem;
+      margin: 0 1.25rem;
+      animation: fadeUp .4s ease;
+    }
+    .confirm-banner .icon { font-size: 1.3rem; }
+    .confirm-banner h4 { font-size: .85rem; font-weight: 600; color: var(--green); }
+    .confirm-banner p { font-size: .75rem; color: var(--muted); }
+
+    .chat-input-area {
+      padding: .85rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex; gap: .6rem; align-items: flex-end;
+      background: var(--card);
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    #msg-input {
+      flex: 1;
+      min-height: 40px; max-height: 120px;
+      resize: none; overflow-y: auto;
+    }
+    #send-btn {
+      width: 40px; height: 40px; border-radius: var(--radius-xs); flex-shrink: 0;
+      background: linear-gradient(135deg,var(--accent),#8b5cf6);
+      border: none; cursor: pointer; color: #fff;
+      display: grid; place-items: center;
+      font-size: .95rem; transition: var(--transition);
+      box-shadow: 0 4px 14px rgba(108,99,255,0.3);
+    }
+    #send-btn:hover { transform: scale(1.06); }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .welcome-chat {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: .75rem; color: var(--muted); text-align: center;
+    }
+    .welcome-chat .big-icon { font-size: 2.5rem; opacity: .5; }
+    .welcome-chat h3 { font-size: 1rem; color: var(--text); }
+    .welcome-chat p { font-size: .82rem; max-width: 260px; }
+
+    /* ══ SETTINGS PAGE ═══════════════════════════════════ */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 1rem;
+    }
+    .settings-card { padding: 1.5rem; }
+    .settings-card h3 {
+      font-size: .9rem; font-weight: 600; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .settings-form { display: flex; flex-direction: column; gap: .85rem; }
+    .settings-footer {
+      margin-top: 1rem;
+      display: flex; gap: .5rem;
+    }
+
+    /* ══ MODAL ════════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: none; place-items: center;
+      animation: fadeIn .2s ease;
+    }
+    .modal-overlay.show { display: grid; }
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 90%; max-width: 520px;
+      max-height: 85vh; overflow-y: auto;
+      animation: scaleIn .25s ease;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h3 { font-size: .95rem; font-weight: 600; }
+    .modal-close {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); cursor: pointer; display: grid; place-items: center;
+      font-size: .85rem; transition: var(--transition);
+    }
+    .modal-close:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+    .modal-body { padding: 1.5rem; }
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex; gap: .5rem; justify-content: flex-end;
+    }
+
+    /* ══ TOAST ════════════════════════════════════════════ */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--bg2); border: 1px solid var(--border);
+      backdrop-filter: var(--glass);
+      border-radius: 12px; padding: .8rem 1.2rem;
+      font-size: .82rem; display: none;
+      box-shadow: var(--shadow); z-index: 999;
+      animation: slideIn .3s ease;
+      max-width: 350px;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error { border-color: var(--red); color: var(--red); }
+    #toast.info { border-color: var(--blue); color: var(--blue); }
+
+    /* ── Skeleton loader ─────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, rgba(60,70,120,0.2) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-xs);
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Empty state ─────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 3rem 1rem; color: var(--muted);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: .75rem; opacity: .5; }
+    .empty-state h4 { font-size: .95rem; color: var(--text); margin-bottom: .3rem; }
+    .empty-state p { font-size: .82rem; max-width: 300px; margin: 0 auto; }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 900px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .chat-layout { grid-template-columns: 1fr; }
+      .chat-sidebar { display: none; }
+      .pipeline-view { grid-template-columns: repeat(2, 1fr); }
+      .settings-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .navbar { padding: 0 1rem; }
+      .nav-brand h1 { display: none; }
+      .nav-links a span { display: none; }
+      .app-content { padding: 1rem; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .pipeline-view { grid-template-columns: 1fr; }
+      .cal-grid { font-size: .7rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ════════════════════════════════════════════ -->
+<nav class="navbar">
+  <a class="nav-brand" href="#" onclick="navigate('dashboard')">
+    <div class="nav-logo">🤖</div>
+    <div>
+      <h1>AI Interview Scheduler</h1>
+      <small>Powered by Google Gemini</small>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#" onclick="navigate('dashboard')" id="nav-dashboard" class="active">📊 <span>Dashboard</span></a></li>
+    <li><a href="#" onclick="navigate('candidates')" id="nav-candidates">👥 <span>Candidates</span></a></li>
+    <li><a href="#" onclick="navigate('calendar')" id="nav-calendar">📅 <span>Calendar</span></a></li>
+    <li><a href="#" onclick="navigate('chat')" id="nav-chat">💬 <span>Chat</span></a></li>
+    <li><a href="#" onclick="navigate('settings')" id="nav-settings">⚙️ <span>Settings</span></a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-status">Online</div>
+  </div>
+</nav>
+
+<!-- ══ MAIN CONTENT ═════════════════════════════════════ -->
+<div class="app-content">
+
+<!-- ── DASHBOARD PAGE ──────────────────────────────────── -->
+<div class="page active" id="page-dashboard">
+  <h2 class="page-title">Dashboard</h2>
+  <p class="page-subtitle">Overview of your hiring pipeline and interview activity</p>
+
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="glass kpi-card">
+      <div class="kpi-icon purple">👥</div>
+      <div><div class="kpi-value" id="kpi-candidates">—</div><div class="kpi-label">Total Candidates</div></div>
+    </div>
+    <div class="glass kpi-card">
+      <div class="kpi-icon green">📋</div>
+      <div><div class="kpi-value" id="kpi-interviews">—</div><div class="kpi-label">Interviews Scheduled</div></div>
+    </div>
+    <div class="glass kpi-card">
+      <div class="kpi-icon blue">💬</div>
+      <div><div class="kpi-value" id="kpi-active">—</div><div class="kpi-label">Active Sessions</div></div>
+    </div>
+    <div class="glass kpi-card">
+      <div class="kpi-icon cyan">📈</div>
+      <div><div class="kpi-value" id="kpi-rate">—</div><div class="kpi-label">Completion Rate</div></div>
+    </div>
+    <div class="glass kpi-card">
+      <div class="kpi-icon yellow">📅</div>
+      <div><div class="kpi-value" id="kpi-week">—</div><div class="kpi-label">This Week</div></div>
+    </div>
+    <div class="glass kpi-card">
+      <div class="kpi-icon red">❌</div>
+      <div><div class="kpi-value" id="kpi-cancelled">—</div><div class="kpi-label">Cancelled</div></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="glass chart-card">
+      <h3>📊 Session Status Breakdown</h3>
+      <div class="chart-wrapper"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div class="glass chart-card">
+      <h3>🏢 Top Roles Applied</h3>
+      <div class="chart-wrapper"><canvas id="rolesChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="glass activity-feed">
+    <h3>🕐 Recent Activity</h3>
+    <div id="activity-list">
+      <div class="empty-state"><p>No activity yet. Start by adding a candidate!</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CANDIDATES PAGE ─────────────────────────────────── -->
+<div class="page" id="page-candidates">
+  <h2 class="page-title">Candidates</h2>
+  <p class="page-subtitle">Manage your hiring pipeline and candidate profiles</p>
+
+  <!-- Pipeline View -->
+  <div class="pipeline-view" id="pipeline-view"></div>
+
+  <!-- Toolbar -->
+  <div class="candidates-toolbar">
+    <div class="search-box">
+      <input type="text" id="cand-search" placeholder="Search candidates..." oninput="searchCandidates()"/>
+    </div>
+    <select class="filter-select" id="cand-filter-status" onchange="searchCandidates()">
+      <option value="">All Statuses</option>
+      <option value="applied">Applied</option>
+      <option value="screening">Screening</option>
+      <option value="interview">Interview</option>
+      <option value="hired">Hired</option>
+      <option value="rejected">Rejected</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" onclick="showAddCandidateModal()">➕ Add Candidate</button>
+    <button class="btn btn-secondary btn-sm" onclick="showImportModal()">📥 Import CSV</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportData('candidates')">📤 Export</button>
+  </div>
+
+  <!-- Table -->
+  <div class="glass candidates-table-wrap" style="padding:.5rem;">
+    <table class="candidates-table">
+      <thead>
+        <tr>
+          <th>Candidate</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Added</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="candidates-tbody">
+        <tr><td colspan="6" class="empty-state"><p>No candidates yet</p></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── CALENDAR PAGE ───────────────────────────────────── -->
+<div class="page" id="page-calendar">
+  <h2 class="page-title">Interview Calendar</h2>
+  <p class="page-subtitle">View and manage all scheduled interviews</p>
+
+  <div class="calendar-header">
+    <div class="calendar-nav">
+      <button class="btn btn-icon" onclick="calNav(-1)">◀</button>
+      <h3 id="cal-month-label">April 2026</h3>
+      <button class="btn btn-icon" onclick="calNav(1)">▶</button>
+      <button class="btn btn-sm btn-secondary" onclick="calToday()">Today</button>
+    </div>
+    <div class="calendar-views">
+      <button class="active" onclick="setCalView('month',this)">Month</button>
+    </div>
+  </div>
+
+  <div class="glass" style="padding:.5rem;">
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- ── CHAT PAGE ───────────────────────────────────────── -->
+<div class="page" id="page-chat">
+  <h2 class="page-title">AI Chat</h2>
+  <p class="page-subtitle">Schedule interviews through AI-powered conversation</p>
+
+  <div class="chat-layout">
+    <div class="glass chat-sidebar">
+      <div class="chat-sidebar-header">
+        <h3>Candidates</h3>
+        <input type="text" placeholder="Search..." id="chat-search" oninput="filterChatCandidates()" style="font-size:.8rem;"/>
+      </div>
+      <div class="chat-candidate-list" id="chat-candidate-list"></div>
+    </div>
+
+    <div class="glass chat-main" id="chat-main">
+      <!-- Welcome screen -->
+      <div class="welcome-chat" id="welcome-screen">
+        <div class="big-icon">💼</div>
+        <h3>Select a candidate to begin</h3>
+        <p>Choose a candidate from the sidebar to start an AI scheduling conversation.</p>
+      </div>
+
+      <!-- Chat header -->
+      <div class="chat-header-bar" id="chat-header" style="display:none;">
+        <div class="avatar-sm" id="chat-avatar">?</div>
+        <div class="info">
+          <h3 id="chat-name">—</h3>
+          <p id="chat-role">—</p>
+        </div>
+        <span class="badge badge-active" id="chat-badge" style="margin-left:auto;">active</span>
+        <button class="btn btn-sm btn-secondary" onclick="startNewSession()" title="Start new chat">🔄 New Chat</button>
+      </div>
+
+      <!-- Messages -->
+      <div id="messages" style="display:none;"></div>
+
+      <!-- Confirm banner -->
+      <div class="confirm-banner" id="confirm-banner" style="display:none;">
+        <div class="icon">🎉</div>
+        <div>
+          <h4>Interview Scheduled!</h4>
+          <p id="confirm-time">—</p>
+        </div>
+      </div>
+
+      <!-- Input area -->
+      <div class="chat-input-area" id="chat-input-area" style="display:none;">
+        <textarea id="msg-input" rows="1" placeholder="Type your message…"></textarea>
+        <button id="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS PAGE ───────────────────────────────────── -->
+<div class="page" id="page-settings">
+  <h2 class="page-title">Settings</h2>
+  <p class="page-subtitle">Configure your interview scheduling preferences</p>
+
+  <div class="settings-grid">
+    <div class="glass settings-card">
+      <h3>🏢 Company Profile</h3>
+      <div class="settings-form">
+        <div class="form-group">
+          <label>Company Name</label>
+          <input type="text" id="set-company" placeholder="TechCorp"/>
+        </div>
+        <div class="form-group">
+          <label>Timezone</label>
+          <select id="set-timezone">
+            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+            <option value="America/New_York">America/New_York (EST)</option>
+            <option value="Europe/London">Europe/London (GMT)</option>
+            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+            <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass settings-card">
+      <h3>🤖 AI Personality</h3>
+      <div class="settings-form">
+        <div class="form-group">
+          <label>Recruiter Name</label>
+          <input type="text" id="set-recruiter" placeholder="Alex"/>
+        </div>
+        <div class="form-group">
+          <label>AI Tone</label>
+          <select id="set-tone">
+            <option value="friendly">Friendly & Warm</option>
+            <option value="professional">Professional & Formal</option>
+            <option value="casual">Casual & Fun</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass settings-card">
+      <h3>📅 Interview Defaults</h3>
+      <div class="settings-form">
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" id="set-duration" value="45"/>
+        </div>
+        <div class="form-group">
+          <label>Default Location</label>
+          <input type="text" id="set-location" placeholder="Google Meet"/>
+        </div>
+        <div class="form-group">
+          <label>Buffer Between Interviews (min)</label>
+          <input type="number" id="set-buffer" value="15"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass settings-card">
+      <h3>🔑 API Configuration</h3>
+      <div class="settings-form">
+        <div class="form-group">
+          <label>Gemini API Key</label>
+          <input type="password" id="set-apikey" placeholder="AIzaSy..."/>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="testApiKey()">🧪 Test Key</button>
+        <div id="apikey-result" style="font-size:.8rem;margin-top:.3rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-footer" style="margin-top:1.25rem;">
+    <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+</div><!-- end app-content -->
+
+<!-- ══ MODALS ════════════════════════════════════════════ -->
+
+<!-- Add Candidate Modal -->
+<div class="modal-overlay" id="modal-add-candidate">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>➕ Add Candidate</h3>
+      <button class="modal-close" onclick="closeModal('modal-add-candidate')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:.85rem;">
+        <div class="form-group"><label>Full Name *</label><input id="add-name" placeholder="e.g. Sarah Khan"/></div>
+        <div class="form-group"><label>Email *</label><input id="add-email" type="email" placeholder="sarah@example.com"/></div>
+        <div class="form-group"><label>Phone</label><input id="add-phone" placeholder="+91 9876543210"/></div>
+        <div class="form-group"><label>Applied Role *</label><input id="add-role" placeholder="e.g. Senior Python Developer"/></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-candidate')">Cancel</button>
+      <button class="btn btn-primary" id="add-cand-btn" onclick="addCandidate()">Add Candidate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📥 Import Candidates from CSV</h3>
+      <button class="modal-close" onclick="closeModal('modal-import')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:1rem;">
+        Upload a CSV file with columns: <code>name, email, phone, role</code>
+      </p>
+      <input type="file" id="csv-file" accept=".csv" style="font-size:.84rem;"/>
+      <div id="import-result" style="margin-top:1rem;font-size:.84rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-import')">Cancel</button>
+      <button class="btn btn-primary" onclick="importCSV()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal-overlay" id="modal-event">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📅 Interview Details</h3>
+      <button class="modal-close" onclick="closeModal('modal-event')">✕</button>
+    </div>
+    <div class="modal-body" id="event-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-event')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   APPLICATION LOGIC
+   ══════════════════════════════════════════════════════════ */
+const API = '';
+let currentPage = 'dashboard';
+let currentSessionId = null;
+let currentCandidate = null;
+let sessionStatus = 'active';
+let calDate = new Date();
+let calEvents = [];
+let statusChartInstance = null;
+let rolesChartInstance = null;
+
+/* ── Navigation ──────────────────────────────────────── */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  currentPage = page;
+
+  // Load page data
+  if (page === 'dashboard') loadDashboard();
+  else if (page === 'candidates') loadCandidatesPage();
+  else if (page === 'calendar') loadCalendar();
+  else if (page === 'chat') loadChatPage();
+  else if (page === 'settings') loadSettings();
+}
+
+/* ── Utility ─────────────────────────────────────────── */
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = type;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+function timeStr(iso) { return new Date(iso || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+function dateStr(iso) { return new Date(iso).toLocaleDateString([], {dateStyle:'medium'}); }
+function getInitials(name) { return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function showModal(id) { document.getElementById(id).classList.add('show'); }
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, { headers: {'Content-Type':'application/json'}, ...opts });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({detail:'Unknown error'}));
+    throw new Error(err.detail || 'API error');
+  }
+  return res.json();
+}
+
+function getBadgeClass(status) {
+  const map = { applied:'badge-applied', screening:'badge-screening', interview:'badge-interview',
+                hired:'badge-hired', rejected:'badge-rejected', active:'badge-active',
+                scheduled:'badge-scheduled', cancelled:'badge-cancelled', confirmed:'badge-confirmed',
+                completed:'badge-completed' };
+  return map[status] || 'badge-active';
+}
+
+/* ══ DASHBOARD ═══════════════════════════════════════════ */
+async function loadDashboard() {
+  try {
+    const stats = await apiFetch('/api/dashboard/stats');
+    document.getElementById('kpi-candidates').textContent = stats.total_candidates;
+    document.getElementById('kpi-interviews').textContent = stats.interviews_scheduled;
+    document.getElementById('kpi-active').textContent = stats.active_sessions;
+    document.getElementById('kpi-rate').textContent = stats.completion_rate + '%';
+    document.getElementById('kpi-week').textContent = stats.interviews_this_week;
+    document.getElementById('kpi-cancelled').textContent = stats.interviews_cancelled;
+
+    // Status chart
+    const sessStat = stats.sessions_by_status || {};
+    const ctx1 = document.getElementById('statusChart').getContext('2d');
+    if (statusChartInstance) statusChartInstance.destroy();
+    statusChartInstance = new Chart(ctx1, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(sessStat).map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+        datasets: [{
+          data: Object.values(sessStat),
+          backgroundColor: ['#6c63ff','#22c55e','#ef4444','#eab308','#3b82f6','#06b6d4'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position:'bottom', labels: { color:'#94a3b8', font:{size:11}, padding:15, usePointStyle:true } }
+        },
+        cutout: '65%',
+      }
+    });
+
+    // Roles chart
+    const roles = stats.top_roles || {};
+    const ctx2 = document.getElementById('rolesChart').getContext('2d');
+    if (rolesChartInstance) rolesChartInstance.destroy();
+    rolesChartInstance = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(roles),
+        datasets: [{
+          data: Object.values(roles),
+          backgroundColor: 'rgba(108,99,255,0.4)',
+          borderColor: '#6c63ff',
+          borderWidth: 1,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color:'rgba(60,70,120,0.15)' }, ticks: { color:'#94a3b8', font:{size:11} } },
+          y: { grid: { display:false }, ticks: { color:'#e2e8f0', font:{size:11} } },
+        }
+      }
+    });
+
+    // Activity feed
+    const activity = await apiFetch('/api/dashboard/activity?limit=10');
+    const actEl = document.getElementById('activity-list');
+    if (!activity.length) {
+      actEl.innerHTML = '<div class="empty-state"><p>No activity yet. Start by adding a candidate!</p></div>';
+    } else {
+      actEl.innerHTML = activity.map(a => `
+        <div class="activity-item">
+          <div class="activity-dot ${a.action}"></div>
+          <div>
+            <div class="activity-text">${a.action.charAt(0).toUpperCase()+a.action.slice(1)} ${a.entity_type}${a.details ? ': '+a.details : ''}</div>
+            <div class="activity-time">${dateStr(a.created_at)} ${timeStr(a.created_at)}</div>
+          </div>
+        </div>`).join('');
+    }
+  } catch(e) { console.error('Dashboard:', e); }
+}
+
+/* ══ CANDIDATES ══════════════════════════════════════════ */
+async function loadCandidatesPage() {
+  await loadCandidatesTable();
+  await loadPipeline();
+}
+
+async function loadCandidatesTable() {
+  const search = document.getElementById('cand-search')?.value || '';
+  const status = document.getElementById('cand-filter-status')?.value || '';
+  let url = '/candidates/?sort=newest';
+  if (search) url += '&search=' + encodeURIComponent(search);
+  if (status) url += '&status=' + encodeURIComponent(status);
+
+  try {
+    const list = await apiFetch(url);
+    const tbody = document.getElementById('candidates-tbody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">👥</div><h4>No candidates found</h4><p>Add your first candidate to get started</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(c => `
+      <tr>
+        <td><div class="cand-name-cell"><div class="avatar-sm">${getInitials(c.name)}</div><div><strong>${c.name}</strong></div></div></td>
+        <td style="color:var(--muted)">${c.email}</td>
+        <td>${c.role}</td>
+        <td><span class="badge ${getBadgeClass(c.status)}">${c.status}</span></td>
+        <td style="color:var(--muted);font-size:.78rem;">${dateStr(c.created_at)}</td>
+        <td>
+          <div class="td-actions">
+            <button class="btn btn-icon btn-sm" onclick="openChatWith(${c.id})" title="Chat">💬</button>
+            <button class="btn btn-icon btn-sm" onclick="editCandidate(${c.id})" title="Edit">✏️</button>
+            <button class="btn btn-icon btn-sm" onclick="deleteCandidate(${c.id},'${c.name}')" title="Delete" style="color:var(--red)">🗑️</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  } catch(e) { console.error('Candidates:', e); }
+}
+
+async function loadPipeline() {
+  const stages = ['applied','screening','interview','hired','rejected'];
+  const icons = {applied:'📝',screening:'🔍',interview:'🎤',hired:'✅',rejected:'❌'};
+  try {
+    const list = await apiFetch('/candidates/');
+    const pipeline = document.getElementById('pipeline-view');
+    pipeline.innerHTML = stages.map(s => {
+      const items = list.filter(c => (c.status || 'applied') === s);
+      return `
+        <div class="glass pipeline-col">
+          <h4>${icons[s]} ${s} <span class="pipeline-count">${items.length}</span></h4>
+          ${items.map(c => `
+            <div class="pipeline-card" onclick="editCandidate(${c.id})">
+              <h5>${c.name}</h5>
+              <p>${c.role}</p>
+            </div>`).join('') || '<p style="font-size:.75rem;color:var(--muted)">Empty</p>'}
+        </div>`;
+    }).join('');
+  } catch(e) { console.error('Pipeline:', e); }
+}
+
+function searchCandidates() { loadCandidatesTable(); }
+
+function showAddCandidateModal() { showModal('modal-add-candidate'); }
+function showImportModal() { showModal('modal-import'); }
+
+async function addCandidate() {
+  const name = document.getElementById('add-name').value.trim();
+  const email = document.getElementById('add-email').value.trim();
+  const phone = document.getElementById('add-phone').value.trim();
+  const role = document.getElementById('add-role').value.trim();
+  if (!name || !email || !role) { showToast('Fill in Name, Email and Role', 'error'); return; }
+  try {
+    const btn = document.getElementById('add-cand-btn');
+    btn.textContent = 'Adding…'; btn.disabled = true;
+    await apiFetch('/candidates/', { method:'POST', body:JSON.stringify({name,email,phone,role}) });
+    ['add-name','add-email','add-phone','add-role'].forEach(id => document.getElementById(id).value = '');
+    closeModal('modal-add-candidate');
+    showToast(`✅ ${name} added!`);
+    loadCandidatesPage();
+  } catch(e) { showToast(e.message, 'error'); }
+  finally {
+    const btn = document.getElementById('add-cand-btn');
+    btn.textContent = 'Add Candidate'; btn.disabled = false;
+  }
+}
+
+async function deleteCandidate(id, name) {
+  if (!confirm(`Delete ${name}? This will remove all their data.`)) return;
+  try {
+    await fetch(`/candidates/${id}`, {method:'DELETE'});
+    showToast(`🗑️ ${name} deleted`);
+    loadCandidatesPage();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function editCandidate(id) {
+  try {
+    const c = await apiFetch(`/candidates/${id}`);
+    const body = document.getElementById('event-detail-body');
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:.85rem;">
+        <div class="form-group"><label>Name</label><input id="edit-name" value="${c.name}"/></div>
+        <div class="form-group"><label>Email</label><input id="edit-email" value="${c.email}"/></div>
+        <div class="form-group"><label>Phone</label><input id="edit-phone" value="${c.phone||''}"/></div>
+        <div class="form-group"><label>Role</label><input id="edit-role" value="${c.role}"/></div>
+        <div class="form-group">
+          <label>Pipeline Stage</label>
+          <select id="edit-status">
+            ${['applied','screening','interview','hired','rejected'].map(s =>
+              `<option value="${s}" ${c.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Notes</label><textarea id="edit-notes" rows="3">${c.notes||''}</textarea></div>
+        <button class="btn btn-primary" onclick="saveEditCandidate(${id})">Save Changes</button>
+      </div>`;
+    document.querySelector('#modal-event .modal-header h3').textContent = '✏️ Edit Candidate';
+    showModal('modal-event');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function saveEditCandidate(id) {
+  const data = {
+    name: document.getElementById('edit-name').value,
+    email: document.getElementById('edit-email').value,
+    phone: document.getElementById('edit-phone').value,
+    role: document.getElementById('edit-role').value,
+    status: document.getElementById('edit-status').value,
+    notes: document.getElementById('edit-notes').value,
+  };
+  try {
+    await apiFetch(`/candidates/${id}`, {method:'PUT', body:JSON.stringify(data)});
+    closeModal('modal-event');
+    showToast('✅ Candidate updated!');
+    loadCandidatesPage();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function importCSV() {
+  const file = document.getElementById('csv-file').files[0];
+  if (!file) { showToast('Select a CSV file', 'error'); return; }
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch('/candidates/import', {method:'POST', body:formData});
+    const data = await res.json();
+    document.getElementById('import-result').innerHTML =
+      `<strong style="color:var(--green)">✅ ${data.imported} imported</strong>, ${data.skipped} skipped` +
+      (data.errors?.length ? '<br><small style="color:var(--muted)">'+data.errors.join('<br>')+'</small>' : '');
+    loadCandidatesPage();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function openChatWith(candidateId) {
+  navigate('chat');
+  const list = await apiFetch('/candidates/');
+  const c = list.find(x => x.id === candidateId);
+  if (c) openSession(c);
+}
+
+function exportData(type) {
+  window.open(`/api/export/${type}?format=csv`, '_blank');
+}
+
+/* ══ CALENDAR ════════════════════════════════════════════ */
+async function loadCalendar() {
+  const year = calDate.getFullYear();
+  const month = calDate.getMonth();
+  const label = calDate.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+  document.getElementById('cal-month-label').textContent = label;
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - firstDay.getDay());
+  const endDate = new Date(lastDay);
+  endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
+
+  try {
+    const start = startDate.toISOString().split('T')[0];
+    const end = endDate.toISOString().split('T')[0];
+    calEvents = await apiFetch(`/api/calendar/events?start=${start}&end=${end}`);
+  } catch(e) { calEvents = []; }
+
+  const today = new Date();
+  const grid = document.getElementById('cal-grid');
+  let html = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d =>
+    `<div class="cal-day-header">${d}</div>`).join('');
+
+  let current = new Date(startDate);
+  while (current <= endDate) {
+    const dateStr = current.toISOString().split('T')[0];
+    const isToday = current.toDateString() === today.toDateString();
+    const isOther = current.getMonth() !== month;
+    const dayEvents = calEvents.filter(e => e.scheduled_time.startsWith(dateStr));
+
+    html += `<div class="cal-day ${isToday?'today':''} ${isOther?'other-month':''}">
+      <div class="cal-day-num">${current.getDate()}</div>
+      ${dayEvents.map(e => `<div class="cal-event ${e.status}" onclick="showEventDetail(${e.id})" title="${e.candidate_name} — ${e.role}">
+        ${new Date(e.scheduled_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} ${e.candidate_name.split(' ')[0]}
+      </div>`).join('')}
+    </div>`;
+    current.setDate(current.getDate() + 1);
+  }
+  grid.innerHTML = html;
+}
+
+function calNav(dir) { calDate.setMonth(calDate.getMonth() + dir); loadCalendar(); }
+function calToday() { calDate = new Date(); loadCalendar(); }
+
+async function showEventDetail(id) {
+  try {
+    const e = await apiFetch(`/api/calendar/events/${id}`);
+    const dt = new Date(e.scheduled_time);
+    document.getElementById('event-detail-body').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:.75rem;">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+          <div class="avatar-sm" style="width:44px;height:44px;font-size:.9rem;">${getInitials(e.candidate_name)}</div>
+          <div>
+            <h3 style="font-size:.95rem;">${e.candidate_name}</h3>
+            <p style="font-size:.8rem;color:var(--muted);">${e.candidate_email}</p>
+          </div>
+          <span class="badge ${getBadgeClass(e.status)}" style="margin-left:auto;">${e.status}</span>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+          <div><label>Role</label><p style="font-size:.85rem;">${e.role}</p></div>
+          <div><label>Duration</label><p style="font-size:.85rem;">${e.duration_minutes} min</p></div>
+          <div><label>Date</label><p style="font-size:.85rem;">${dt.toLocaleDateString([],{dateStyle:'long'})}</p></div>
+          <div><label>Time</label><p style="font-size:.85rem;">${dt.toLocaleTimeString([],{timeStyle:'short'})}</p></div>
+        </div>
+        <div><label>Location</label><p style="font-size:.85rem;">${e.location}</p></div>
+        ${e.notes ? `<div><label>Notes</label><p style="font-size:.85rem;">${e.notes}</p></div>` : ''}
+      </div>`;
+    document.querySelector('#modal-event .modal-header h3').textContent = '📅 Interview Details';
+    showModal('modal-event');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+/* ══ CHAT ════════════════════════════════════════════════ */
+async function loadChatPage() {
+  try {
+    const list = await apiFetch('/candidates/');
+    const el = document.getElementById('chat-candidate-list');
+    el.innerHTML = list.length ? list.map(c => `
+      <div class="chat-candidate-item ${currentCandidate?.id===c.id?'active':''}"
+           onclick='openSession(${JSON.stringify(c).replace(/'/g,"&#39;")})'>
+        <div class="avatar-sm">${getInitials(c.name)}</div>
+        <div><h4>${c.name}</h4><p>${c.role}</p></div>
+      </div>`).join('') :
+      '<div class="empty-state" style="padding:1rem;"><p>No candidates yet</p></div>';
+  } catch(e) { console.error(e); }
+}
+
+function filterChatCandidates() {
+  const q = document.getElementById('chat-search').value.toLowerCase();
+  document.querySelectorAll('.chat-candidate-item').forEach(el => {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+  });
+}
+
+async function openSession(candidate) {
+  currentCandidate = candidate;
+  document.querySelectorAll('.chat-candidate-item').forEach(c => c.classList.remove('active'));
+  // highlight active
+  const items = document.querySelectorAll('.chat-candidate-item');
+  items.forEach(i => { if (i.textContent.includes(candidate.name)) i.classList.add('active'); });
+
+  document.getElementById('chat-avatar').textContent = getInitials(candidate.name);
+  document.getElementById('chat-name').textContent = candidate.name;
+  document.getElementById('chat-role').textContent = candidate.role;
+  document.getElementById('welcome-screen').style.display = 'none';
+  document.getElementById('chat-header').style.display = 'flex';
+  document.getElementById('messages').style.display = 'flex';
+  document.getElementById('chat-input-area').style.display = 'flex';
+  document.getElementById('confirm-banner').style.display = 'none';
+  document.getElementById('messages').innerHTML = '';
+  unlockInput(); // Reset input state from any previous locked session
+
+  try {
+    const session = await apiFetch('/sessions/start', {method:'POST', body:JSON.stringify({candidate_id:candidate.id})});
+    currentSessionId = session.id;
+    sessionStatus = 'active';
+    showTyping();
+    const greet = await apiFetch(`/chat/${currentSessionId}/greet`);
+    removeTyping();
+    appendMessage('ai', greet.reply);
+    updateBadge('active');
+  } catch(e) {
+    removeTyping();
+    if (e.message.includes('active session already exists')) {
+      const sid = e.message.match(/:\s*([\w-]{36})/)?.[1];
+      if (sid) { currentSessionId = sid; await loadExistingSession(sid); }
+    } else { showToast(e.message, 'error'); }
+  }
+}
+
+async function loadExistingSession(sessionId) {
+  try {
+    const [session, msgs] = await Promise.all([
+      apiFetch(`/sessions/${sessionId}`),
+      apiFetch(`/sessions/${sessionId}/messages`)
+    ]);
+    sessionStatus = session.status;
+    updateBadge(session.status);
+    document.getElementById('messages').innerHTML = '';
+    msgs.forEach(m => appendMessage(m.role === 'assistant' ? 'ai' : 'user', m.content));
+    if (session.status === 'scheduled') {
+      document.getElementById('confirm-banner').style.display = 'flex';
+      document.getElementById('confirm-time').textContent = 'Interview already scheduled.';
+      lockInput();
+    } else if (session.status === 'cancelled' || session.status === 'completed') {
+      lockInput(session.status === 'cancelled' ? 'Session cancelled.' : 'Session completed.');
+    }
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function startNewSession() {
+  if (!currentCandidate) return;
+  // Complete the old session
+  if (currentSessionId) {
+    try {
+      await fetch(`/sessions/${currentSessionId}/complete`, {method:'PUT'});
+    } catch(e) { /* ignore */ }
+  }
+  // Start fresh
+  unlockInput();
+  document.getElementById('messages').innerHTML = '';
+  document.getElementById('confirm-banner').style.display = 'none';
+  try {
+    const session = await apiFetch('/sessions/start', {method:'POST', body:JSON.stringify({candidate_id:currentCandidate.id})});
+    currentSessionId = session.id;
+    sessionStatus = 'active';
+    showTyping();
+    const greet = await apiFetch(`/chat/${currentSessionId}/greet`);
+    removeTyping();
+    appendMessage('ai', greet.reply);
+    updateBadge('active');
+  } catch(e) {
+    removeTyping();
+    showToast(e.message, 'error');
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text || !currentSessionId || sessionStatus !== 'active') return;
+  input.value = ''; input.style.height = 'auto';
+  appendMessage('user', text);
+  document.getElementById('send-btn').disabled = true;
+  showTyping();
+  try {
+    const data = await apiFetch(`/chat/${currentSessionId}`, {method:'POST', body:JSON.stringify({message:text})});
+    removeTyping();
+    appendMessage('ai', data.reply);
+    sessionStatus = data.session_status;
+    updateBadge(data.session_status);
+    if (data.session_status === 'scheduled' && data.scheduled_time) {
+      const dt = new Date(data.scheduled_time);
+      document.getElementById('confirm-banner').style.display = 'flex';
+      document.getElementById('confirm-time').textContent = `Confirmed for ${dt.toLocaleString([],{dateStyle:'long',timeStyle:'short'})}`;
+      lockInput();
+      showToast('🎉 Interview scheduled!');
+    } else if (data.session_status === 'cancelled') {
+      lockInput('Session ended.');
+      showToast('Session cancelled.', 'error');
+    }
+  } catch(e) { removeTyping(); showToast(e.message, 'error'); }
+  finally { document.getElementById('send-btn').disabled = false; }
+}
+
+function appendMessage(role, content) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="msg-avatar">${role==='ai'?'🤖':'👤'}</div>
+    <div>
+      <div class="bubble">${content.replace(/\n/g,'<br>')}</div>
+      <div class="msg-time">${timeStr()}</div>
+    </div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+function showTyping() {
+  const c = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = 'msg ai typing'; d.id = 'typing-indicator';
+  d.innerHTML = '<div class="msg-avatar">🤖</div><div class="bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+  c.appendChild(d); c.scrollTop = c.scrollHeight;
+}
+function removeTyping() { document.getElementById('typing-indicator')?.remove(); }
+function updateBadge(status) {
+  const b = document.getElementById('chat-badge');
+  b.textContent = status; b.className = `badge ${getBadgeClass(status)}`;
+}
+function lockInput(msg = '') {
+  document.getElementById('msg-input').disabled = true;
+  document.getElementById('msg-input').placeholder = msg || 'Conversation ended.';
+  document.getElementById('send-btn').disabled = true;
+}
+function unlockInput() {
+  document.getElementById('msg-input').disabled = false;
+  document.getElementById('msg-input').placeholder = 'Type your message…';
+  document.getElementById('send-btn').disabled = false;
+  sessionStatus = 'active';
+}
+
+/* ══ SETTINGS ════════════════════════════════════════════ */
+async function loadSettings() {
+  try {
+    const s = await apiFetch('/api/settings/');
+    document.getElementById('set-company').value = s.company_name || '';
+    document.getElementById('set-recruiter').value = s.recruiter_name || '';
+    document.getElementById('set-timezone').value = s.timezone || 'Asia/Kolkata';
+    document.getElementById('set-tone').value = s.ai_tone || 'friendly';
+    document.getElementById('set-duration').value = s.interview_duration || '45';
+    document.getElementById('set-location').value = s.interview_location || '';
+    document.getElementById('set-buffer').value = s.buffer_minutes || '15';
+  } catch(e) { console.error(e); }
+}
+
+async function saveSettings() {
+  const data = {
+    company_name: document.getElementById('set-company').value,
+    recruiter_name: document.getElementById('set-recruiter').value,
+    timezone: document.getElementById('set-timezone').value,
+    ai_tone: document.getElementById('set-tone').value,
+    interview_duration: document.getElementById('set-duration').value,
+    interview_location: document.getElementById('set-location').value,
+    buffer_minutes: document.getElementById('set-buffer').value,
+  };
+  try {
+    await apiFetch('/api/settings/', {method:'PUT', body:JSON.stringify(data)});
+    showToast('✅ Settings saved!');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function testApiKey() {
+  const key = document.getElementById('set-apikey').value.trim();
+  if (!key) { showToast('Enter an API key', 'error'); return; }
+  const el = document.getElementById('apikey-result');
+  el.innerHTML = '<span style="color:var(--yellow)">Testing…</span>';
+  try {
+    const res = await apiFetch('/api/settings/test-key', {method:'POST', body:JSON.stringify({api_key:key})});
+    el.innerHTML = res.valid
+      ? `<span style="color:var(--green)">✅ Valid! ${res.message}</span>`
+      : `<span style="color:var(--red)">❌ Invalid: ${res.message}</span>`;
+  } catch(e) { el.innerHTML = `<span style="color:var(--red)">Error: ${e.message}</span>`; }
+}
+
+/* ── Auto-resize textarea ────────────────────────────── */
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+/* ── Init ────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+  const input = document.getElementById('msg-input');
+  input.addEventListener('input', () => autoResize(input));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+});
+</script>
+</body>
+</html>
